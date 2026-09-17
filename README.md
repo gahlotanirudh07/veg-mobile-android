@@ -131,15 +131,5 @@ The app connects to the Express 5 backend. To toggle between Local Development a
 
 ---
 
-## 🧪 Verified Accounts for Testing
-
-| Role | Mobile | Password | Key Capability |
-|---|---|---|---|
-| **Super Admin** | `9999999999` | `Mandi@1234` | Full user & produce master catalog management |
-| **Seller (Mohit)** | `9560775860` | `Mandi@1234` | Rate updates, fulfillment & khata ledger |
-| **Buyer (Puneet)** | `9971305410` | `Mandi@1234` | Live catalog browsing & instant checkout |
-
----
-
 ## 📄 License
 Copyright © 2026 MandiExpress. All rights reserved.
