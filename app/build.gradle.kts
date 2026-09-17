@@ -11,7 +11,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.freshveg.app"
+        applicationId = "com.mandiexpress.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
