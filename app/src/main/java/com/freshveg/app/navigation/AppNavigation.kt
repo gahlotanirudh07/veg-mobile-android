@@ -28,7 +28,7 @@ fun AppNavigation(
                 onNavigateToRegisterSeller = { navController.navigate(Screen.RegisterSeller.route) },
                 onLoginSuccess = { role, isSeller, _isBuyer ->
                     val targetRoute = when {
-                        role == "SUPER_ADMIN" || role == "ADMIN" -> Screen.SellerProducts.route
+                        role.uppercase() == "SUPER_ADMIN" || role.uppercase() == "ADMIN" -> Screen.Admin.route
                         isSeller -> Screen.SellerProducts.route
                         else -> Screen.Home.route
                     }
@@ -195,6 +195,11 @@ fun AppNavigation(
             com.freshveg.app.features.admin.AdminControlCenterScreen(
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }

@@ -25,6 +25,7 @@ import com.freshveg.app.core.ui.theme.*
 @Composable
 fun AdminControlCenterScreen(
     onNavigateBack: () -> Unit,
+    onLogout: () -> Unit = {},
     viewModel: AdminViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -70,6 +71,9 @@ fun AdminControlCenterScreen(
                 actions = {
                     IconButton(onClick = viewModel::loadAdminData) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = ForestGreenPrimary)
+                    }
+                    IconButton(onClick = onLogout) {
+                        Icon(Icons.Default.Logout, contentDescription = "Logout", tint = ForestGreenPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CardSurface)
