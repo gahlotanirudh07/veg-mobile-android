@@ -26,6 +26,7 @@ import com.freshveg.app.features.seller.rates.SellerRatesScreen
 @Composable
 fun SellerMainScreen(
     sessionManager: SessionManager,
+    updateManager: com.freshveg.app.core.update.AppUpdateManager? = null,
     homeViewModel: SellerHomeViewModel = hiltViewModel(),
     onNavigateToStore: () -> Unit = {},
     onNavigateToRates: () -> Unit,
@@ -251,6 +252,7 @@ fun SellerMainScreen(
                 )
                 4 -> SellerAccountScreen(
                     sessionManager = sessionManager,
+                    updateManager = updateManager,
                     onNavigateToStore = onNavigateToStore,
                     onNavigateToCustomers = onNavigateToCustomers,
                     onNavigateToInvoices = onNavigateToInvoices,

@@ -24,7 +24,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.freshveg.app.BuildConfig
 import com.freshveg.app.core.datastore.SessionManager
+import com.freshveg.app.core.ui.components.UpdatePromptDialog
+import com.freshveg.app.core.update.AppUpdateManager
+import com.freshveg.app.core.update.UpdateDownloadState
+import com.freshveg.app.core.update.UpdateInfo
 import com.freshveg.app.core.ui.theme.*
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -33,6 +38,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SellerAccountScreen(
     sessionManager: SessionManager,
+    updateManager: AppUpdateManager? = null,
     onNavigateToStore: () -> Unit = {},
     onNavigateToCustomers: () -> Unit,
     onNavigateToInvoices: () -> Unit,
@@ -48,6 +54,11 @@ fun SellerAccountScreen(
     var mobile by remember { mutableStateOf("") }
     var role by remember { mutableStateOf("SELLER") }
     var showLogoutDialog by remember { mutableStateOf(false) }
+
+    val updateState by (updateManager?.updateState?.collectAsState() ?: remember { mutableStateOf(UpdateDownloadState.Idle) })
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var activeUpdateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
 
     LaunchedEffect(Unit) {
         businessName = sessionManager.businessName.firstOrNull() ?: sessionManager.dataStoreBusinessName() ?: "Mandi Wholesale Trader"
@@ -238,11 +249,29 @@ fun SellerAccountScreen(
                         )
                         HorizontalDivider(color = Color(0xFFF0F0F0))
                         AccountActionRow(
-                            icon = Icons.Default.Info,
-                            title = "MandiExpress Wholesale v2.0",
-                            subtitle = "High-speed produce supply chain platform",
-                            iconTint = Color.Gray,
-                            onClick = {}
+                            icon = Icons.Default.SystemUpdate,
+                            title = "Check for Updates (ऐप अपडेट)",
+                            subtitle = if (isCheckingUpdate) "Checking latest version..." else "Version v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})",
+                            iconTint = ActionGreen,
+                            onClick = {
+                                if (!isCheckingUpdate && updateManager != null) {
+                                    coroutineScope.launch {
+                                        isCheckingUpdate = true
+                                        val info = updateManager.checkForUpdates()
+                                        isCheckingUpdate = false
+                                        if (info.isUpdateAvailable) {
+                                            activeUpdateInfo = info
+                                            showUpdateDialog = true
+                                        } else {
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                "MandiExpress is up to date (v${BuildConfig.VERSION_NAME})",
+                                                android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
+                            }
                         )
                     }
                 }
@@ -265,6 +294,27 @@ fun SellerAccountScreen(
                 }
             }
         }
+    }
+
+    if (showUpdateDialog && activeUpdateInfo != null && updateManager != null) {
+        UpdatePromptDialog(
+            updateInfo = activeUpdateInfo!!,
+            downloadState = updateState,
+            onStartDownload = {
+                coroutineScope.launch {
+                    updateManager.downloadAndInstall(activeUpdateInfo!!.downloadUrl)
+                }
+            },
+            onInstall = {
+                if (updateState is UpdateDownloadState.ReadyToInstall) {
+                    updateManager.installApk((updateState as UpdateDownloadState.ReadyToInstall).apkFile)
+                }
+            },
+            onDismiss = {
+                showUpdateDialog = false
+                updateManager.resetState()
+            }
+        )
     }
 
     if (showLogoutDialog) {

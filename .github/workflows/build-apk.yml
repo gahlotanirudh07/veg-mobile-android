@@ -37,9 +37,36 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
 
+      - name: Rename APK for Release Distribution
+        run: cp app/build/outputs/apk/debug/app-debug.apk MandiExpress.apk
+
       - name: Upload Debug APK as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: MandiExpress-Debug-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: MandiExpress.apk
           retention-days: 30
+
+      - name: Publish to GitHub Releases (Continuous OTA Channel)
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "MandiExpress Latest Continuous Release"
+          body: |
+            ## 🚀 MandiExpress Android App (Continuous Release)
+
+            - **Direct APK Download**: [MandiExpress.apk](https://github.com/gahlotanirudh07/veg-mobile-android/releases/latest/download/MandiExpress.apk)
+            - **Commit**: `${{ github.sha }}`
+            - **Built**: `${{ github.event.head_commit.timestamp || 'Latest Push' }}`
+            
+            ### ✨ Included Features:
+            - 📲 **In-App OTA Self-Updater**: 1-tap download & install directly from within the app.
+            - 📈 **Morning Rate Board**: Real-time mandi rates with instant price locks.
+            - 📦 **Order Pipeline & Weighment**: Offline-first fulfillment with live synchronization.
+            - 🧾 **Digital Khata & Tax Invoices**: Automated ledger & WhatsApp payment reminders.
+          files: MandiExpress.apk
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

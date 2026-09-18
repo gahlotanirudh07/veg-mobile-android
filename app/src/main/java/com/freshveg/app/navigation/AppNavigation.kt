@@ -15,6 +15,7 @@ import com.freshveg.app.features.seller.products.SellerProductsScreen
 fun AppNavigation(
     sessionManager: com.freshveg.app.core.datastore.SessionManager,
     apiService: com.freshveg.app.core.network.VegApiService,
+    updateManager: com.freshveg.app.core.update.AppUpdateManager? = null,
     navController: NavHostController = rememberNavController()
 ) {
     NavHost(
@@ -66,6 +67,7 @@ fun AppNavigation(
             com.freshveg.app.features.buyer.BuyerMainScreen(
                 sessionManager = sessionManager,
                 apiService = apiService,
+                updateManager = updateManager,
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
@@ -78,6 +80,7 @@ fun AppNavigation(
         composable(Screen.SellerProducts.route) {
             com.freshveg.app.features.seller.SellerMainScreen(
                 sessionManager = sessionManager,
+                updateManager = updateManager,
                 onNavigateToStore = {
                     navController.navigate(Screen.MyStore.route)
                 },

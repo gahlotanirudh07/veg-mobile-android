@@ -305,6 +305,15 @@ data class BuyerLastOrderResponse(
     val lastOrder: OrderDto? = null
 )
 
+data class AppVersionDto(
+    val latestVersion: String = "1.0.0",
+    val versionCode: Int? = 1,
+    val downloadUrl: String? = null,
+    val releaseNotes: String? = null,
+    val forceUpdate: Boolean = false,
+    val publishedAt: String? = null
+)
+
 interface VegApiService {
     // 1. Auth (/auth)
     @GET("auth/config")
@@ -321,6 +330,9 @@ interface VegApiService {
 
     @GET("health/db-warmup")
     suspend fun warmUpDatabase(): Response<Unit>
+
+    @GET("app/version")
+    suspend fun getAppVersion(): Response<AppVersionDto>
 
     @GET("products")
     suspend fun getProducts(@Query("categoryId") categoryId: String? = null): Response<List<ProductDto>>

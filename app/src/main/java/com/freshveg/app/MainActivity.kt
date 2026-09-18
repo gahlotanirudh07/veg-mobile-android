@@ -39,6 +39,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var languageManager: LanguageManager
 
+    @Inject
+    lateinit var updateManager: com.freshveg.app.core.update.AppUpdateManager
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ -> }
@@ -76,7 +79,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     AppNavigation(
                         sessionManager = sessionManager,
-                        apiService = apiService
+                        apiService = apiService,
+                        updateManager = updateManager
                     )
                 }
             }

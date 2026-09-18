@@ -26,6 +26,7 @@ import com.freshveg.app.features.buyer.orders.BuyerOrdersScreen
 fun BuyerMainScreen(
     sessionManager: SessionManager,
     apiService: VegApiService,
+    updateManager: com.freshveg.app.core.update.AppUpdateManager? = null,
     onLogout: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -233,6 +234,7 @@ fun BuyerMainScreen(
                 4 -> BuyerAccountScreen(
                     sessionManager = sessionManager,
                     apiService = apiService,
+                    updateManager = updateManager,
                     onNavigateToOrders = {
                         triggerHaptic()
                         selectedTab = 2
