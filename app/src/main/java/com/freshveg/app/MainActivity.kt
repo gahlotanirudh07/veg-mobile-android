@@ -57,6 +57,13 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Asynchronously pre-warm Neon database compute in background on app launch
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                apiService.warmUpDatabase()
+            } catch (_: Exception) {}
+        }
+
         // Maintain WebSocket connection based on auth token
         lifecycleScope.launch {
             sessionManager.accessToken.collectLatest { token ->

@@ -319,6 +319,9 @@ interface VegApiService {
     @POST("auth/register-buyer")
     suspend fun registerBuyer(@Body request: RegisterBuyerRequest): Response<RegisterBuyerResponse>
 
+    @GET("health/db-warmup")
+    suspend fun warmUpDatabase(): Response<Unit>
+
     @GET("products")
     suspend fun getProducts(@Query("categoryId") categoryId: String? = null): Response<List<ProductDto>>
 
