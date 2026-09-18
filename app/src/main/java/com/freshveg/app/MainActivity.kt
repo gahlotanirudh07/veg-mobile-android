@@ -57,13 +57,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Asynchronously pre-warm Neon database compute in background on app launch
-        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                apiService.warmUpDatabase()
-            } catch (_: Exception) {}
-        }
-
         // Maintain WebSocket connection based on auth token
         lifecycleScope.launch {
             sessionManager.accessToken.collectLatest { token ->
@@ -88,6 +81,26 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private var lastWarmupTime: Long = 0L
+
+    private fun triggerDatabaseWarmup() {
+        val now = System.currentTimeMillis()
+        // Pre-warm if first launch OR if app was in Recent Apps for > 4 minutes
+        if (now - lastWarmupTime > 4 * 60 * 1000L) {
+            lastWarmupTime = now
+            lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    apiService.warmUpDatabase()
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        triggerDatabaseWarmup()
     }
 
     override fun onDestroy() {
