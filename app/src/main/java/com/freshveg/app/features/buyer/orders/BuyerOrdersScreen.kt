@@ -19,10 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.freshveg.app.R
 import com.freshveg.app.core.network.OrderDto
 import com.freshveg.app.core.ui.ProduceThumbnailBadge
 import com.freshveg.app.core.ui.ProduceVisualUtils
@@ -45,159 +47,60 @@ fun BuyerOrdersScreen(
                 title = {
                     Column {
                         Text(
-                            "My Orders & Deliveries",
+                            text = stringResource(R.string.orders_title),
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleLarge,
                             color = MainInk
                         )
                         Text(
-                            "Live Scale Weighment & Status",
-                            style = MaterialTheme.typography.labelMedium,
+                            text = "Live Morning Dispatch & Weighment",
+                            style = MaterialTheme.typography.bodySmall,
                             color = InkSecondary
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MainInk)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MainInk)
                     }
                 },
-                actions = {
-                    IconButton(onClick = viewModel::loadOrders) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = MainInk)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CardSurface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SecondarySurface)
             )
         },
-        containerColor = BackgroundSurface
+        containerColor = SecondarySurface
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Search & Filter Header
-            Surface(
-                color = CardSurface,
-                shadowElevation = 1.dp,
-                modifier = Modifier.fillMaxWidth()
+            // Date Filter Tabs
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    OutlinedTextField(
-                        value = uiState.searchQuery,
-                        onValueChange = viewModel::onSearchQueryChange,
-                        placeholder = { Text("Search by #order or produce item...") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
-                        trailingIcon = {
-                            if (uiState.searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color.Gray)
-                                }
-                            }
-                        },
-                        shape = RoundedCornerShape(10.dp),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ActionGreen,
-                            unfocusedBorderColor = Color(0xFFE0E0E0),
-                            focusedContainerColor = BackgroundSurface,
-                            unfocusedContainerColor = BackgroundSurface
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Date Filter & Sort Controls Row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                listOf(
+                    "ALL" to stringResource(R.string.orders_tab_all),
+                    "TODAY" to "Today",
+                    "YESTERDAY" to "Yesterday",
+                    "THIS_WEEK" to "This Week"
+                ).forEach { (filter, label) ->
+                    val isSelected = uiState.selectedDateFilter == filter
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isSelected) ActionGreen else NeutralSurface,
+                        modifier = Modifier.clickable { viewModel.onSelectDateFilter(filter) }
                     ) {
-                        // Date filter chips
-                        val dateFilters = listOf("ALL" to "All Dates", "TODAY" to "Today", "YESTERDAY" to "Yesterday", "THIS_WEEK" to "This Week")
-                        dateFilters.forEach { (key, label) ->
-                            FilterChip(
-                                selected = uiState.selectedDateFilter == key,
-                                onClick = { viewModel.onSelectDateFilter(key) },
-                                label = { Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) },
-                                shape = RoundedCornerShape(20.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = ActionGreen,
-                                    selectedLabelColor = Color.White,
-                                    containerColor = Color(0xFFF1F5F9),
-                                    labelColor = Color(0xFF475569)
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
-                                    selected = uiState.selectedDateFilter == key,
-                                    borderColor = if (uiState.selectedDateFilter == key) ActionGreen else Color(0xFFE2E8F0),
-                                    selectedBorderColor = ActionGreen
-                                )
-                            )
-                        }
-
-                        VerticalDivider(
-                            modifier = Modifier.height(20.dp),
-                            color = Color(0xFFCBD5E1)
-                        )
-
-                        // Sort toggle chips
-                        FilterChip(
-                            selected = uiState.selectedSortOrder == "NEWEST",
-                            onClick = { viewModel.onSelectSortOrder("NEWEST") },
-                            leadingIcon = {
-                                Icon(Icons.Default.ArrowDownward, contentDescription = null, modifier = Modifier.size(14.dp))
-                            },
-                            label = { Text("Newest", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) },
-                            shape = RoundedCornerShape(20.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFF1976D2),
-                                selectedLabelColor = Color.White,
-                                containerColor = Color(0xFFF1F5F9),
-                                labelColor = Color(0xFF475569)
-                            )
-                        )
-
-                        FilterChip(
-                            selected = uiState.selectedSortOrder == "OLDEST",
-                            onClick = { viewModel.onSelectSortOrder("OLDEST") },
-                            leadingIcon = {
-                                Icon(Icons.Default.ArrowUpward, contentDescription = null, modifier = Modifier.size(14.dp))
-                            },
-                            label = { Text("Oldest", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) },
-                            shape = RoundedCornerShape(20.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFF1976D2),
-                                selectedLabelColor = Color.White,
-                                containerColor = Color(0xFFF1F5F9),
-                                labelColor = Color(0xFF475569)
-                            )
-                        )
-
-                        FilterChip(
-                            selected = uiState.selectedSortOrder == "AMOUNT_HIGH",
-                            onClick = { viewModel.onSelectSortOrder(if (uiState.selectedSortOrder == "AMOUNT_HIGH") "AMOUNT_LOW" else "AMOUNT_HIGH") },
-                            leadingIcon = {
-                                Icon(Icons.Default.CurrencyRupee, contentDescription = null, modifier = Modifier.size(14.dp))
-                            },
-                            label = {
-                                Text(
-                                    if (uiState.selectedSortOrder == "AMOUNT_LOW") "Amount: Low → High" else "Amount: High → Low",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            },
-                            shape = RoundedCornerShape(20.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFE65100),
-                                selectedLabelColor = Color.White,
-                                containerColor = Color(0xFFF1F5F9),
-                                labelColor = Color(0xFF475569)
-                            )
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else MainInk,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                         )
                     }
                 }
@@ -205,35 +108,31 @@ fun BuyerOrdersScreen(
 
             if (uiState.isLoading && uiState.orders.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = ForestGreenPrimary)
+                    CircularProgressIndicator(color = ActionGreen)
                 }
             } else if (uiState.filteredOrders.isEmpty()) {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.LocalShipping, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(64.dp))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = if (uiState.searchQuery.isNotEmpty() || uiState.selectedDateFilter != "ALL") "No orders match your filter" else "No orders placed yet",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = if (uiState.searchQuery.isNotEmpty() || uiState.selectedDateFilter != "ALL") "Try selecting 'All Dates' or clearing search" else "Explore today's fresh produce catalog to place your early morning order.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("📦", fontSize = 48.sp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = stringResource(R.string.orders_empty),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MainInk
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                    modifier = Modifier.fillMaxSize()
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(uiState.filteredOrders, key = { it.id }) { order ->
                         BuyerOrderCard(
@@ -247,11 +146,10 @@ fun BuyerOrdersScreen(
         }
     }
 
-    // Modal: Itemized Order Details Bottom Sheet
     uiState.selectedOrder?.let { order ->
         BuyerOrderDetailBottomSheet(
             order = order,
-            onDismiss = viewModel::closeOrderDetail,
+            onDismiss = { viewModel.closeOrderDetail() },
             onShare = { viewModel.shareOrderStatus(context, order) }
         )
     }
@@ -263,25 +161,15 @@ fun BuyerOrderCard(
     onClick: () -> Unit,
     onShare: () -> Unit
 ) {
-    val statusUpper = order.status.uppercase()
-    val (statusLabel, statusBg, statusColor) = when (statusUpper) {
-        "DELIVERED" -> Triple("🟢 DELIVERED", Color(0xFFE8F5E9), ForestGreenPrimary)
-        "FULFILLED" -> Triple("📦 WEIGHED & DISPATCHED", Color(0xFFE3F2FD), Color(0xFF1976D2))
-        "CONFIRMED" -> Triple("🔵 CONFIRMED", Color(0xFFFFF3E0), Color(0xFFE65100))
-        "CANCELLED" -> Triple("🔴 CANCELLED", Color(0xFFFFEBEE), Color(0xFFD32F2F))
-        else -> Triple("🟡 PLACED", Color(0xFFFFFDE7), Color(0xFFF57F17))
-    }
-
     Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = CardSurface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+            .clickable(onClick = onClick)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Header Row: Order Number & Status Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -289,138 +177,71 @@ fun BuyerOrderCard(
             ) {
                 Column {
                     Text(
-                        text = "Order #${order.orderNumber}",
-                        fontWeight = FontWeight.ExtraBold,
+                        text = "Order #${order.orderNumber.ifBlank { order.id.takeLast(6) }}",
+                        fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium,
-                        color = Color.Black
+                        color = MainInk
                     )
                     Text(
-                        text = order.createdAt.safeDate(),
+                        text = (order.placedAt ?: order.createdAt ?: "").safeDate(),
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = InkSecondary
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(statusBg)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = when (order.status) {
+                        "FULFILLED", "DELIVERED" -> ActionGreen.copy(alpha = 0.12f)
+                        "CONFIRMED" -> Color(0xFF1976D2).copy(alpha = 0.12f)
+                        "CANCELLED" -> MutedRedError.copy(alpha = 0.12f)
+                        else -> AmberWarning.copy(alpha = 0.15f)
+                    }
                 ) {
                     Text(
-                        text = statusLabel,
+                        text = order.status,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = statusColor
+                        color = when (order.status) {
+                            "FULFILLED", "DELIVERED" -> ActionGreen
+                            "CONFIRMED" -> Color(0xFF1976D2)
+                            "CANCELLED" -> MutedRedError
+                            else -> AmberWarning
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // 4-Stage Progress Tracker
-            OrderProgressTracker(status = statusUpper)
+            Text(
+                text = "${order.items.size} Produce Items • ${order.items.take(3).joinToString { it.displayName }}",
+                style = MaterialTheme.typography.bodySmall,
+                color = InkSecondary,
+                maxLines = 1
+            )
 
-            Spacer(modifier = Modifier.height(10.dp))
-            HorizontalDivider(color = Color(0xFFEEEEEE))
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Items Summary & Total Amount
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${order.items.size} Produce Items",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.DarkGray,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Text(
-                    text = "₹${order.totalAmount.toInt()}.00",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "Total: ${ProduceVisualUtils.formatCurrency(order.totalAmount)}",
                     fontWeight = FontWeight.ExtraBold,
-                    color = ForestGreenPrimary
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ActionGreen
                 )
-            }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Actions Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onClick,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(vertical = 6.dp)
-                ) {
-                    Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp), tint = ForestGreenPrimary)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("View Items", fontSize = 12.sp)
-                }
-
-                IconButton(
-                    onClick = onShare,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(Icons.Default.Share, contentDescription = "Share", tint = ForestGreenPrimary)
+                TextButton(onClick = onClick) {
+                    Text("View Weighment →", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = ActionGreen)
                 }
             }
         }
     }
-}
-
-@Composable
-fun OrderProgressTracker(status: String) {
-    val step = when (status) {
-        "CONFIRMED" -> 2
-        "FULFILLED" -> 3
-        else -> 1
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        TrackingPill(title = "1. Placed", active = step >= 1, isCurrent = step == 1)
-        TrackingConnector(active = step >= 2)
-        TrackingPill(title = "2. Confirmed", active = step >= 2, isCurrent = step == 2)
-        TrackingConnector(active = step >= 3)
-        TrackingPill(title = "3. Fulfilled & Billed", active = step >= 3, isCurrent = step == 3)
-    }
-}
-
-@Composable
-fun TrackingPill(title: String, active: Boolean, isCurrent: Boolean) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(if (active) ForestGreenPrimary else Color(0xFFEEEEEE))
-            .padding(horizontal = 4.dp, vertical = 2.dp)
-    ) {
-        Text(
-            text = title,
-            fontSize = 9.sp,
-            fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Normal,
-            color = if (active) Color.White else Color.Gray
-        )
-    }
-}
-
-@Composable
-fun TrackingConnector(active: Boolean) {
-    Box(
-        modifier = Modifier
-            .width(8.dp)
-            .height(2.dp)
-            .background(if (active) ForestGreenPrimary else Color(0xFFEEEEEE))
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -433,13 +254,13 @@ fun BuyerOrderDetailBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = CardSurface
+        containerColor = Color.White
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -448,13 +269,13 @@ fun BuyerOrderDetailBottomSheet(
             ) {
                 Column {
                     Text(
-                        text = "Order #${order.orderNumber}",
+                        text = "Order #${order.orderNumber.ifBlank { order.id.takeLast(6) }}",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MainInk
                     )
                     Text(
-                        text = "Placed on ${order.createdAt.safeDate()}",
+                        text = "Placed on ${(order.placedAt ?: order.createdAt ?: "").safeDate()}",
                         style = MaterialTheme.typography.bodySmall,
                         color = InkSecondary
                     )
@@ -465,8 +286,8 @@ fun BuyerOrderDetailBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = Color(0xFFEEEEEE))
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = BorderSubtle)
             Spacer(modifier = Modifier.height(10.dp))
 
             Text("Itemized Produce & Scale Weighment:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
@@ -475,15 +296,15 @@ fun BuyerOrderDetailBottomSheet(
             LazyColumn(
                 modifier = Modifier
                     .weight(1f, fill = false)
-                    .heightIn(max = 280.dp),
+                    .heightIn(max = 300.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(order.items, key = { it.id }) { item ->
-                    val itemName = item.displayName
-                    val unit = item.unitTypeSnapshot ?: "KG"
-                    Card(
+                    val unit = item.unitSnapshot.lowercase()
+                    Surface(
                         shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = SecondarySurface),
+                        color = NeutralSurface,
+                        border = androidx.compose.foundation.BorderStroke(0.75.dp, BorderSubtle),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -495,32 +316,33 @@ fun BuyerOrderDetailBottomSheet(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 ProduceThumbnailBadge(
-                                    name = itemName,
+                                    name = item.displayName,
                                     hindiName = item.hindiName,
-                                    imageUrl = null,
-                                    size = 40.dp,
+                                    size = 42.dp,
                                     cornerRadius = 8.dp
                                 )
                                 Column {
-                                    Text(itemName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium, color = MainInk)
+                                    Text(item.displayName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium, color = MainInk)
                                     Text(
-                                        text = if (item.deliveredQuantity != null) "Weighed: ${item.deliveredQuantity} $unit (Ordered: ${item.quantity})"
-                                        else "Ordered: ${item.quantity} $unit",
+                                        text = if (item.deliveredQuantity != null && item.deliveredQuantity!! > 0) {
+                                            "Weighed: ${ProduceVisualUtils.formatQuantity(item.deliveredQuantity!!, unit)} (Ordered: ${ProduceVisualUtils.formatQuantity(item.quantity, unit)})"
+                                        } else {
+                                            "Ordered: ${ProduceVisualUtils.formatQuantity(item.quantity, unit)}"
+                                        },
                                         style = MaterialTheme.typography.labelSmall,
                                         color = if (item.deliveredQuantity != null) ActionGreen else InkSecondary
                                     )
                                 }
                             }
 
-                            Text("₹${item.total.toInt()}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium, color = MainInk)
+                            Text(ProduceVisualUtils.formatCurrency(item.total), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium, color = MainInk)
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Total Card
             Surface(
                 color = Color(0xFFE8F5E9),
                 shape = RoundedCornerShape(10.dp),
@@ -533,8 +355,8 @@ fun BuyerOrderDetailBottomSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Total Billed Amount", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                    Text("₹${order.totalAmount.toInt()}.00", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleLarge, color = ActionGreen)
+                    Text(stringResource(R.string.common_total), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                    Text(ProduceVisualUtils.formatCurrency(order.totalAmount), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleLarge, color = ActionGreen)
                 }
             }
         }

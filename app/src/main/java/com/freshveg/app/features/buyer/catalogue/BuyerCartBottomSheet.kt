@@ -1,67 +1,88 @@
 package com.freshveg.app.features.buyer.catalogue
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.freshveg.app.core.network.ProductDto
+import com.freshveg.app.R
+import com.freshveg.app.core.network.CartItemDetail
 import com.freshveg.app.core.ui.ProduceThumbnailBadge
-import com.freshveg.app.core.ui.animation.bounceClick
-import com.freshveg.app.core.ui.animation.rememberTactileHaptic
+import com.freshveg.app.core.ui.ProduceVisualUtils
 import com.freshveg.app.core.ui.theme.*
 import com.freshveg.app.core.utils.MandiTranslationUtils
-
-data class CartItemDetail(
-    val product: ProductDto,
-    val quantity: Double
-) {
-    val lineTotal: Double get() = product.currentPrice * quantity
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BuyerCartBottomSheet(
     cartItems: List<CartItemDetail>,
+    estimatedTotal: Double,
+    isPlacingOrder: Boolean,
     onUpdateQuantity: (String, Double) -> Unit,
     onRemoveItem: (String) -> Unit,
     onClearCart: () -> Unit,
-    onDismiss: () -> Unit,
-    onPlaceOrder: (String) -> Unit, // deliveryNotes
-    isPlacingOrder: Boolean = false
+    onPlaceOrder: (String?) -> Unit,
+    onDismiss: () -> Unit
 ) {
     var deliveryNotes by remember { mutableStateOf("") }
-    val estimatedTotal = cartItems.sumOf { it.lineTotal }
-    val totalSavings = cartItems.sumOf { (it.product.discountAmountPerUnit ?: 0.0) * it.quantity }
-    val triggerHaptic = rememberTactileHaptic()
+    val view = LocalView.current
+    val focusManager = LocalFocusManager.current
+
+    val totalSavings = remember(cartItems) {
+        cartItems.sumOf { item ->
+            val origPrice = item.product.basePrice ?: item.product.currentPrice
+            val lineOrig = origPrice * item.quantity
+            val saving = lineOrig - item.lineTotal
+            if (saving > 0) saving else 0.0
+        }
+    }
+
+    fun triggerHaptic() {
+        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = NeutralSurface,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        containerColor = Color.White,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // Header: Title & Clear All Action
+            // Header Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -69,84 +90,106 @@ fun BuyerCartBottomSheet(
             ) {
                 Column {
                     Text(
-                        text = "Review Produce Cart",
+                        text = stringResource(R.string.buyer_cart_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MainInk
                     )
                     Text(
-                        text = "${cartItems.size} produce items for morning delivery",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = stringResource(R.string.buyer_cart_items_count, cartItems.size),
+                        style = MaterialTheme.typography.bodySmall,
                         color = InkSecondary
                     )
                 }
 
-                TextButton(
-                    onClick = {
-                        triggerHaptic()
-                        onClearCart()
+                if (cartItems.isNotEmpty()) {
+                    TextButton(
+                        onClick = {
+                            triggerHaptic()
+                            onClearCart()
+                        }
+                    ) {
+                        Text(
+                            text = stringResource(R.string.buyer_cart_clear),
+                            color = MutedRedError,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp
+                        )
                     }
-                ) {
-                    Text(
-                        text = "Clear All",
-                        color = MutedRedError,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-            HorizontalDivider(color = BorderSubtle)
-            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = BorderSubtle)
 
-            // Cart Items Scrollable List
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .heightIn(max = 300.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(cartItems, key = { it.product.id }) { item ->
-                    val product = item.product
-                    val safeName = product.safeName
-                    val hindiName = product.hindiName ?: MandiTranslationUtils.translateEnglishToHindi(safeName)
-                    val unitName = product.unitType?.name ?: "KG"
+            if (cartItems.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🛒", fontSize = 40.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.buyer_cart_empty),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MainInk
+                        )
+                        Text(
+                            text = stringResource(R.string.buyer_cart_empty_sub),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = InkTertiary
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .heightIn(max = 340.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(cartItems, key = { it.product.id }) { item ->
+                        val product = item.product
+                        val unitName = product.unitType.name.lowercase()
+                        val hindiName = product.hindiName ?: MandiTranslationUtils.translateEnglishToHindi(product.safeName)
+                        var textInput by remember(item.quantity) {
+                            mutableStateOf(ProduceVisualUtils.formatQuantityValue(item.quantity))
+                        }
 
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = SecondarySurface,
-                        border = BorderStroke(0.5.dp, BorderSubtle),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = NeutralSurface,
+                            border = BorderStroke(0.75.dp, BorderSubtle),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            // Produce Vector Thumbnail & Bilingual Name
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 ProduceThumbnailBadge(
-                                    name = safeName,
+                                    name = product.safeName,
                                     hindiName = hindiName,
                                     imageUrl = product.imageUrl,
-                                    size = 46.dp,
+                                    size = 50.dp,
                                     cornerRadius = 10.dp
                                 )
-                                Column {
+
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = safeName,
+                                        text = product.safeName,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.bodyLarge,
                                         color = MainInk
                                     )
-                                    if (hindiName != null) {
+                                    if (!hindiName.isNullOrBlank()) {
                                         Text(
                                             text = hindiName,
                                             style = MaterialTheme.typography.labelSmall,
@@ -154,128 +197,162 @@ fun BuyerCartBottomSheet(
                                         )
                                     }
                                     Text(
-                                        text = "₹${product.currentPrice.toInt()} / $unitName",
+                                        text = "₹${product.effectivePrice.toInt()}/$unitName",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = ActionGreen,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = ActionGreen
                                     )
                                 }
-                            }
 
-                            // Stepper (- [Qty] +) & Line Total
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                // Decrement / Delete
-                                IconButton(
-                                    onClick = {
-                                        triggerHaptic()
-                                        if (item.quantity <= 1.0) {
-                                            onRemoveItem(product.id)
-                                        } else {
-                                            onUpdateQuantity(product.id, item.quantity - 1.0)
+                                // Interactive Decimal Stepper Row
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            triggerHaptic()
+                                            val next = item.quantity - 0.5
+                                            if (next <= 0.0) {
+                                                onRemoveItem(product.id)
+                                            } else {
+                                                onUpdateQuantity(product.id, next)
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .size(30.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(SecondarySurface)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (item.quantity <= 0.5) Icons.Outlined.Delete else Icons.Default.Remove,
+                                            contentDescription = "Decrease",
+                                            tint = if (item.quantity <= 0.5) MutedRedError else MainInk,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+
+                                    // Direct typing box
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color.White,
+                                        border = BorderStroke(1.dp, BorderSubtle),
+                                        modifier = Modifier
+                                            .width(52.dp)
+                                            .height(30.dp)
+                                    ) {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier.fillMaxSize()
+                                        ) {
+                                            BasicTextField(
+                                                value = textInput,
+                                                onValueChange = { newVal ->
+                                                    val filtered = newVal.filter { it.isDigit() || it == '.' }
+                                                    textInput = filtered
+                                                    val parsed = filtered.toDoubleOrNull()
+                                                    if (parsed != null && parsed > 0) {
+                                                        onUpdateQuantity(product.id, parsed)
+                                                    }
+                                                },
+                                                singleLine = true,
+                                                textStyle = TextStyle(
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    textAlign = TextAlign.Center,
+                                                    color = MainInk
+                                                ),
+                                                keyboardOptions = KeyboardOptions(
+                                                    keyboardType = KeyboardType.Decimal,
+                                                    imeAction = ImeAction.Done
+                                                ),
+                                                keyboardActions = KeyboardActions(
+                                                    onDone = {
+                                                        focusManager.clearFocus()
+                                                        val parsed = textInput.toDoubleOrNull()
+                                                        if (parsed == null || parsed <= 0) {
+                                                            onRemoveItem(product.id)
+                                                        } else {
+                                                            onUpdateQuantity(product.id, parsed)
+                                                        }
+                                                    }
+                                                ),
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
                                         }
-                                    },
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(NeutralSurface)
-                                ) {
-                                    Icon(
-                                        imageVector = if (item.quantity <= 1.0) Icons.Outlined.Delete else Icons.Default.Remove,
-                                        contentDescription = "Decrease",
-                                        tint = if (item.quantity <= 1.0) MutedRedError else MainInk,
-                                        modifier = Modifier.size(16.dp)
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            triggerHaptic()
+                                            onUpdateQuantity(product.id, item.quantity + 0.5)
+                                        },
+                                        modifier = Modifier
+                                            .size(30.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(ActionGreen)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "Increase",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(6.dp))
+
+                                    Text(
+                                        text = ProduceVisualUtils.formatCurrency(item.lineTotal),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.5.sp,
+                                        color = MainInk
                                     )
                                 }
-
-                                Text(
-                                    text = "${item.quantity.toInt()} $unitName",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.5.sp,
-                                    color = MainInk,
-                                    modifier = Modifier.padding(horizontal = 2.dp)
-                                )
-
-                                // Increment
-                                IconButton(
-                                    onClick = {
-                                        triggerHaptic()
-                                        onUpdateQuantity(product.id, item.quantity + 1.0)
-                                    },
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(ActionGreen)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = "Increase",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(6.dp))
-
-                                Text(
-                                    text = "₹${item.lineTotal.toInt()}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = MainInk
-                                )
                             }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Zero-Trust Wholesale Rate Card & Schedule Trust Box
+            // Verified Rate Banner
             Surface(
                 color = ActionGreen.copy(alpha = 0.08f),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.VerifiedUser,
                         contentDescription = null,
                         tint = ActionGreen,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Column {
-                        Text(
-                            text = "Verified Wholesale Rate Card",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MainInk
-                        )
-                        Text(
-                            text = "Standard delivery tomorrow 05:00 AM – 07:00 AM. Final invoice calculated upon physical scale weighment.",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = InkSecondary
-                        )
-                    }
+                    Text(
+                        text = "Standard delivery tomorrow 05:00 AM – 07:00 AM. Final billing computed upon mandi weighment.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = InkSecondary,
+                        fontSize = 11.sp
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Kitchen Delivery Notes TextField
+            // Special Dispatch Notes
             OutlinedTextField(
                 value = deliveryNotes,
                 onValueChange = { deliveryNotes = it },
-                label = { Text("Kitchen Delivery Instructions (Optional)") },
-                placeholder = { Text("e.g. Call receiving chef, gate #2") },
+                label = { Text(stringResource(R.string.buyer_cart_note)) },
+                placeholder = { Text("e.g. Clean spinach, small onions") },
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = ActionGreen,
                     unfocusedBorderColor = BorderSubtle,
@@ -285,9 +362,9 @@ fun BuyerCartBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Bill Breakdown & Primary Submit CTA
+            // Bottom Pricing & Order Submit CTA
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -296,26 +373,25 @@ fun BuyerCartBottomSheet(
                 Column {
                     if (totalSavings > 0.0) {
                         Text(
-                            text = "🎉 Total Savings: -₹${totalSavings.toInt()}",
+                            text = "Savings: -${ProduceVisualUtils.formatCurrency(totalSavings)}",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = ActionGreen
                         )
                     }
                     Text(
-                        text = "Estimated Amount",
+                        text = stringResource(R.string.common_total),
                         style = MaterialTheme.typography.labelSmall,
                         color = InkTertiary
                     )
                     Text(
-                        text = "₹${estimatedTotal.toInt()}.00",
+                        text = ProduceVisualUtils.formatCurrency(estimatedTotal),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = MainInk
                     )
                 }
 
-                // Place Order Button (Strictly transmits only products and quantities)
                 Button(
                     onClick = {
                         triggerHaptic()
@@ -323,28 +399,28 @@ fun BuyerCartBottomSheet(
                     },
                     enabled = cartItems.isNotEmpty() && !isPlacingOrder,
                     colors = ButtonDefaults.buttonColors(containerColor = ActionGreen),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
-                        .height(48.dp)
-                        .padding(start = 16.dp)
+                        .height(46.dp)
+                        .padding(start = 12.dp)
                 ) {
                     if (isPlacingOrder) {
                         CircularProgressIndicator(
                             color = Color.White,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Place Morning Order",
+                            text = stringResource(R.string.buyer_place_order),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontSize = 13.5.sp
                         )
                     }
                 }
@@ -352,4 +428,3 @@ fun BuyerCartBottomSheet(
         }
     }
 }
-

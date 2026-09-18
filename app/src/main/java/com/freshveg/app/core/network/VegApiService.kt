@@ -131,6 +131,13 @@ data class CategorySummaryDto(
     val name: String? = null
 )
 
+data class CartItemDetail(
+    val product: ProductDto,
+    val quantity: Double
+) {
+    val lineTotal: Double get() = product.effectivePrice * quantity
+}
+
 data class ProductDto(
     val id: String = "",
     val name: String = "Produce",
@@ -156,6 +163,8 @@ data class ProductDto(
 ) {
     val safeName: String get() = if (name.isNullOrBlank()) "Produce" else name
     val resolvedCategoryName: String get() = categoryName ?: category?.name ?: "All"
+    val effectivePrice: Double get() = currentPrice
+    val marketPrice: Double? get() = basePrice
 }
 
 data class AddMasterProductRequest(
@@ -196,6 +205,7 @@ data class OrderDto(
 ) {
     val hasInvoice: Boolean get() = invoices.isNotEmpty()
     val activeInvoice: InvoiceSummaryDto? get() = invoices.firstOrNull()
+    val buyer: CustomerSummaryDto? get() = customer
 }
 
 data class OrderItemDto(
@@ -217,6 +227,11 @@ data class OrderItemDto(
     val isAvailable: Boolean = true
 ) {
     val displayName: String get() = if (productNameSnapshot.isNullOrBlank()) "Produce Item" else productNameSnapshot
+    val unitSnapshot: String get() = unitTypeSnapshot ?: "KG"
+    val safeUnit: String get() = unitTypeSnapshot ?: "KG"
+    val effectivePrice: Double get() = price
+    val weighedQuantity: Double? get() = deliveredQuantity
+    val unitPriceSnapshot: Double get() = price
 }
 
 data class CustomerSummaryDto(

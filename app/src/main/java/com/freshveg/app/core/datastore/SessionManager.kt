@@ -43,6 +43,8 @@ class SessionManager @Inject constructor(
     val refreshToken: Flow<String?> = context.dataStore.data.map { it[REFRESH_TOKEN] }
     val userId: Flow<String?> = context.dataStore.data.map { it[USER_ID] }
     val userName: Flow<String?> = context.dataStore.data.map { it[USER_NAME] }
+    val userMobile: Flow<String?> = context.dataStore.data.map { it[MOBILE] }
+    val mobile: Flow<String?> = context.dataStore.data.map { it[MOBILE] }
     val businessName: Flow<String?> = context.dataStore.data.map { it[BUSINESS_NAME] }
     val role: Flow<String?> = context.dataStore.data.map { it[ROLE] }
     val sellerCode: Flow<String?> = context.dataStore.data.map { it[SELLER_CODE] }
@@ -115,7 +117,6 @@ class SessionManager @Inject constructor(
 
     suspend fun clearSession() {
         context.dataStore.edit { prefs ->
-            // Clear session tokens but preserve remember_me preferences if enabled
             val remember = prefs[REMEMBER_ME] ?: false
             val savedMobile = prefs[SAVED_MOBILE]
             val savedPassword = prefs[SAVED_PASSWORD]

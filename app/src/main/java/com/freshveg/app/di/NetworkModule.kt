@@ -2,6 +2,7 @@ package com.freshveg.app.di
 
 import com.freshveg.app.core.network.ApiConfig
 import com.freshveg.app.core.network.AuthInterceptor
+import com.freshveg.app.core.network.RetryInterceptor
 import com.freshveg.app.core.network.VegApiService
 import com.google.gson.*
 import dagger.Module
@@ -12,7 +13,6 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.lang.reflect.Type
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -54,14 +54,18 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
+    fun provideOkHttpClient(
+        authInterceptor: AuthInterceptor,
+        retryInterceptor: RetryInterceptor
+    ): OkHttpClient {
         return OkHttpClient.Builder()
+            .addInterceptor(retryInterceptor)
             .addInterceptor(authInterceptor)
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             })
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
             .build()
     }
 

@@ -1,89 +1,103 @@
 package com.freshveg.app.features.seller.orders
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.freshveg.app.R
 import com.freshveg.app.core.network.FulfillOrderItem
 import com.freshveg.app.core.network.OrderDto
 import com.freshveg.app.core.ui.ProduceThumbnailBadge
 import com.freshveg.app.core.ui.ProduceVisualUtils
+import com.freshveg.app.core.ui.animation.bounceClick
 import com.freshveg.app.core.ui.theme.*
+import com.freshveg.app.core.utils.MandiTranslationUtils
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun FulfillOrderBottomSheet(
     order: OrderDto,
+    isSubmitting: Boolean,
     serverError: String? = null,
-    isSubmitting: Boolean = false,
-    onDismiss: () -> Unit,
-    onConfirmFulfill: (List<FulfillOrderItem>) -> Unit
+    onConfirmFulfill: (List<FulfillOrderItem>) -> Unit,
+    onDismiss: () -> Unit
 ) {
-    // Map of orderItemId to current weighed text
+    val view = LocalView.current
+    val focusManager = LocalFocusManager.current
+
+    fun triggerHaptic() {
+        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+    }
+
+    // Pre-fill 100% of weights with ordered weights or existing weighed quantities
     val weightsMap = remember(order) {
         mutableStateMapOf<String, String>().apply {
             order.items.forEach { item ->
-                put(item.id, (item.deliveredQuantity ?: item.quantity).toString())
+                val initVal = if ((item.weighedQuantity ?: 0.0) > 0.0) {
+                    ProduceVisualUtils.formatQuantityValue(item.weighedQuantity!!)
+                } else {
+                    ProduceVisualUtils.formatQuantityValue(item.quantity)
+                }
+                put(item.id, initVal)
             }
         }
     }
 
     var validationError by remember { mutableStateOf<String?>(null) }
 
+    // Live calculated gross and net billed amounts
+    val calculatedTotal = remember(weightsMap.toMap()) {
+        var sum = 0.0
+        order.items.forEach { item ->
+            val w = weightsMap[item.id]?.toDoubleOrNull() ?: item.quantity
+            val eff = item.effectivePrice
+            sum += (eff * w)
+        }
+        sum
+    }
+
     val orderedTotal = remember(order) {
-        order.items.sumOf { it.quantity * it.price }
-    }
-
-    val deliveredGross = order.items.sumOf { item ->
-        val weight = weightsMap[item.id]?.toDoubleOrNull() ?: item.quantity
-        val base = item.basePriceSnapshot ?: item.price
-        weight * base
-    }
-
-    val discountSaved = order.items.sumOf { item ->
-        val weight = weightsMap[item.id]?.toDoubleOrNull() ?: item.quantity
-        val base = item.basePriceSnapshot ?: item.price
-        val disc = item.discountAmount ?: maxOf(0.0, base - item.price)
-        weight * disc
-    }
-
-    val calculatedTotal = order.items.sumOf { item ->
-        val weight = weightsMap[item.id]?.toDoubleOrNull() ?: item.quantity
-        weight * item.price
-    }
-
-    val varianceItems = order.items.mapNotNull { item ->
-        val weight = weightsMap[item.id]?.toDoubleOrNull()
-        if (weight != null && Math.abs(weight - item.quantity) > 0.001) {
-            item to (weight - item.quantity)
-        } else null
+        order.totalAmount
     }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = CardSurface
+        containerColor = Color.White,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
-                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
+            // Header Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -91,250 +105,275 @@ fun FulfillOrderBottomSheet(
             ) {
                 Column {
                     Text(
-                        text = if (order.status == "FULFILLED") "Edit Fulfillment (Adjust Weights)" else "Fulfill Order (Delivered Weights)",
+                        text = stringResource(R.string.seller_scale_fulfill_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MainInk
                     )
                     Text(
-                        text = "Order #${order.orderNumber} • ${order.customer?.businessName ?: "Customer"}",
-                        style = MaterialTheme.typography.labelMedium,
+                        text = "Order #${order.id.takeLast(6)} • ${order.customer?.businessName ?: order.customer?.primaryContactName ?: "Buyer"}",
+                        style = MaterialTheme.typography.bodySmall,
                         color = InkSecondary
                     )
                 }
-                Icon(Icons.Default.Scale, contentDescription = null, tint = ActionGreen, modifier = Modifier.size(32.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = ActionGreen.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text = "${order.items.size} Items",
+                        fontWeight = FontWeight.Bold,
+                        color = ActionGreen,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-            HorizontalDivider(color = Color(0xFFEEEEEE))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // ⚡ 1-Tap Fast Fulfill Button (All Weights Match)
+            ElevatedCard(
+                onClick = {
+                    triggerHaptic()
+                    val fulfillmentList = order.items.map { item ->
+                        FulfillOrderItem(
+                            orderItemId = item.id,
+                            deliveredQuantity = item.quantity
+                        )
+                    }
+                    onConfirmFulfill(fulfillmentList)
+                },
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = ActionGreen),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("⚡", fontSize = 18.sp)
+                        Column {
+                            Text(
+                                text = stringResource(R.string.seller_fast_fulfill_all),
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 13.5.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "1-Tap fast track • No weight edits needed",
+                                fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.85f)
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ArrowForward,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Live Quantity Variance Alert Banner
-            if (varianceItems.isNotEmpty()) {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFFFFF8E1),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = Color(0xFFE65100),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Scale Weight Variance Detected",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFE65100)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Supplied scale weights differ from ordered quantity for ${varianceItems.size} item(s). Live bill totals have been adjusted:",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF5D4037)
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            varianceItems.take(3).forEach { (item, diff) ->
-                                val w = weightsMap[item.id] ?: ""
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = if (diff > 0) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
-                                ) {
-                                    Text(
-                                        text = "${item.displayName}: ${item.quantity} → $w ${item.unitTypeSnapshot} (${if (diff > 0) "+$diff" else "$diff"})",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (diff > 0) ActionGreen else Color(0xFFC62828),
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-            }
+            // Produce Items List with Exception Steppers
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .heightIn(max = 360.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(order.items, key = { it.id }) { item ->
+                    val unit = item.unitSnapshot.lowercase()
+                    val currentValStr = weightsMap[item.id] ?: ProduceVisualUtils.formatQuantityValue(item.quantity)
+                    val currentVal = currentValStr.toDoubleOrNull() ?: item.quantity
+                    val variance = currentVal - item.quantity
+                    val itemName = item.displayName
+                    val hindiName = item.hindiName ?: MandiTranslationUtils.translateEnglishToHindi(itemName)
+                    val bringIntoViewRequester = remember { BringIntoViewRequester() }
 
-            Text(
-                text = "Enter actual weight delivered for each item:",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = Color.DarkGray
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Vegetable Weighed Input List
-            order.items.forEach { item ->
-                val itemName = item.displayName
-                val unit = item.unitTypeSnapshot ?: "KG"
-                val currentWeightText = weightsMap[item.id] ?: ""
-                val lineTotal = (currentWeightText.toDoubleOrNull() ?: 0.0) * item.price
-                val enteredWeight = currentWeightText.toDoubleOrNull()
-                
-                // Smart Typo Detection: e.g. entered 262 for ordered 25 -> suggested 26.2
-                val suggestedDecimal = remember(currentWeightText, item.quantity) {
-                    if (enteredWeight != null && enteredWeight >= item.quantity * 4 && currentWeightText.length >= 2 && !currentWeightText.contains('.')) {
-                        // Insert decimal before last digit: e.g. "262" -> "26.2"
-                        val candidate = "${currentWeightText.dropLast(1)}.${currentWeightText.takeLast(1)}".toDoubleOrNull()
-                        if (candidate != null && candidate >= item.quantity * 0.5 && candidate <= item.quantity * 2.0) {
-                            "${currentWeightText.dropLast(1)}.${currentWeightText.takeLast(1)}"
-                        } else null
-                    } else null
-                }
-                
-                val hasLargeDiscrepancy = enteredWeight != null && (enteredWeight > item.quantity * 2.0 || (enteredWeight < item.quantity * 0.3 && enteredWeight > 0))
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = SecondarySurface),
-                    elevation = CardDefaults.cardElevation(0.dp)
-                ) {
-                    Column(
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = NeutralSurface,
+                        border = BorderStroke(0.75.dp, BorderSubtle),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(10.dp)
+                            .bringIntoViewRequester(bringIntoViewRequester)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp)
                         ) {
-                            ProduceThumbnailBadge(
-                                name = itemName,
-                                hindiName = item.hindiName,
-                                imageUrl = null,
-                                size = 44.dp,
-                                cornerRadius = 8.dp
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                ProduceThumbnailBadge(
+                                    name = itemName,
+                                    hindiName = hindiName,
+                                    size = 46.dp,
+                                    cornerRadius = 8.dp
+                                )
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = itemName,
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MainInk
-                                )
-                                Text(
-                                    text = "Ordered: ${item.quantity} $unit • ₹${item.price.toInt()}/$unit",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = InkSecondary
-                                )
-                                if (lineTotal > 0) {
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Line Total: ₹${lineTotal.toInt()}",
+                                        text = itemName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MainInk
+                                    )
+                                    Text(
+                                        text = "Ordered: ${ProduceVisualUtils.formatQuantity(item.quantity, unit)} @ ₹${item.effectivePrice.toInt()}/$unit",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = ActionGreen,
-                                        fontWeight = FontWeight.Bold
+                                        color = InkSecondary
                                     )
                                 }
+
+                                // Scale Weight Text Input Box
+                                OutlinedTextField(
+                                    value = currentValStr,
+                                    onValueChange = { newVal ->
+                                        val filtered = newVal.filter { it.isDigit() || it == '.' }
+                                        weightsMap[item.id] = filtered
+                                        validationError = null
+                                    },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Decimal,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = MainInk
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = ActionGreen,
+                                        unfocusedBorderColor = BorderSubtle,
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White
+                                    ),
+                                    modifier = Modifier.width(80.dp)
+                                )
                             }
 
-                            // Delivered Quantity Input Field
-                            OutlinedTextField(
-                                value = currentWeightText,
-                                onValueChange = { input ->
-                                    weightsMap[item.id] = input
-                                    validationError = null
-                                },
-                                label = { Text("Delivered (${item.unitTypeSnapshot})") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                singleLine = true,
-                                modifier = Modifier.width(110.dp),
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                        }
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                        // Typo Auto-Fix Alert Banner
-                        if (suggestedDecimal != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFFFFF3E0),
-                                modifier = Modifier.fillMaxWidth()
+                            // Variance Indicator & Exception Quick Steppers
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
+                                // Real-time Tare Variance Badge
+                                if (Math.abs(variance) < 0.001) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = ActionGreen.copy(alpha = 0.12f)
                                     ) {
-                                        Icon(
-                                            Icons.Default.Warning,
-                                            contentDescription = null,
-                                            tint = Color(0xFFE65100),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "Typo? Ordered ${item.quantity} $unit. Mean $suggestedDecimal $unit?",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFFE65100),
-                                            fontWeight = FontWeight.Medium
+                                            text = stringResource(R.string.seller_tare_zero),
+                                            color = ActionGreen,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                         )
                                     }
-                                    TextButton(
-                                        onClick = {
-                                            weightsMap[item.id] = suggestedDecimal
-                                        },
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                } else {
+                                    val sign = if (variance > 0) "+" else ""
+                                    val varianceStr = String.format(Locale.US, "%s%.2f", sign, variance).trimEnd('0').trimEnd('.')
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (variance > 0) Color(0xFFFFF3E0) else Color(0xFFF3E5F5)
                                     ) {
                                         Text(
-                                            "Auto-Fix",
+                                            text = stringResource(R.string.seller_tare_diff, varianceStr),
+                                            color = if (variance > 0) Color(0xFFE65100) else Color(0xFF7B1FA2),
                                             fontWeight = FontWeight.Bold,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = ActionGreen
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                         )
                                     }
                                 }
-                            }
-                        } else if (hasLargeDiscrepancy) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFFFFEBEE),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
+
+                                // Quick Stepper Chips ([-0.5], [-0.1], [Reset], [+0.1], [+0.5])
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        Icons.Default.Info,
-                                        contentDescription = null,
-                                        tint = Color(0xFFC62828),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "High variance: ${enteredWeight} $unit vs ordered ${item.quantity} $unit",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFFC62828),
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                    listOf(-0.5, -0.1).forEach { delta ->
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = SecondarySurface,
+                                            border = BorderStroke(0.5.dp, BorderSubtle),
+                                            modifier = Modifier.bounceClick {
+                                                triggerHaptic()
+                                                val updated = (currentVal + delta).coerceAtLeast(0.1)
+                                                weightsMap[item.id] = ProduceVisualUtils.formatQuantityValue(updated)
+                                            }
+                                        ) {
+                                            Text(
+                                                text = "${delta}",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MainInk,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = ActionGreen.copy(alpha = 0.1f),
+                                        modifier = Modifier.bounceClick {
+                                            triggerHaptic()
+                                            weightsMap[item.id] = ProduceVisualUtils.formatQuantityValue(item.quantity)
+                                        }
+                                    ) {
+                                        Text(
+                                            text = "Reset",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = ActionGreen,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                        )
+                                    }
+
+                                    listOf(0.1, 0.5).forEach { delta ->
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = SecondarySurface,
+                                            border = BorderStroke(0.5.dp, BorderSubtle),
+                                            modifier = Modifier.bounceClick {
+                                                triggerHaptic()
+                                                val updated = currentVal + delta
+                                                weightsMap[item.id] = ProduceVisualUtils.formatQuantityValue(updated)
+                                            }
+                                        ) {
+                                            Text(
+                                                text = "+${delta}",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MainInk,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -342,106 +381,76 @@ fun FulfillOrderBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Live 4-Tier Calculated Billed Total Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                elevation = CardDefaults.cardElevation(0.dp)
+            // Calculated Billed Total Card
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = SecondarySurface,
+                border = BorderStroke(0.75.dp, BorderSubtle),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Original Ordered Total:", style = MaterialTheme.typography.bodySmall, color = InkSecondary)
-                        Text("₹${orderedTotal.toInt()}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = InkSecondary)
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Delivered Total (Actual):", style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
-                        Text("₹${deliveredGross.toInt()}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Color.DarkGray)
-                    }
-
-                    if (discountSaved > 0) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Discount Saved:", style = MaterialTheme.typography.bodySmall, color = ActionGreen, fontWeight = FontWeight.Bold)
-                            Text("-₹${discountSaved.toInt()}", style = MaterialTheme.typography.bodySmall, color = ActionGreen, fontWeight = FontWeight.ExtraBold)
-                        }
-                    }
-
-                    HorizontalDivider(color = Color(0xFFE2E8F0))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Column {
                         Text(
-                            text = "Final Billed Total:",
+                            text = "Original Ordered: ${ProduceVisualUtils.formatCurrency(orderedTotal)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = InkTertiary
+                        )
+                        Text(
+                            text = "Final Weighed Bill Amount",
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium,
                             color = MainInk
                         )
-                        Text(
-                            text = "₹${calculatedTotal.toInt()}",
-                            fontWeight = FontWeight.ExtraBold,
-                            style = MaterialTheme.typography.titleLarge,
-                            color = ActionGreen
-                        )
                     }
+
+                    Text(
+                        text = ProduceVisualUtils.formatCurrency(calculatedTotal),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = ActionGreen
+                    )
                 }
             }
 
             if (validationError != null) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = validationError!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
+                    color = MutedRedError,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
             if (serverError != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "⚠️ $serverError",
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(10.dp)
-                    )
-                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "⚠️ $serverError",
+                    color = MutedRedError,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Submit Button
+            // Primary Confirm & Dispatch Button
             Button(
                 onClick = {
+                    triggerHaptic()
                     val fulfillmentList = mutableListOf<FulfillOrderItem>()
                     for (item in order.items) {
                         val textVal = weightsMap[item.id]
                         val parsedVal = textVal?.toDoubleOrNull()
                         if (parsedVal == null || parsedVal <= 0) {
-                            validationError = "Please enter valid delivered quantity for ${item.productNameSnapshot}"
+                            validationError = "Please enter valid scale weight for ${item.displayName}"
                             return@Button
                         }
                         fulfillmentList.add(
@@ -457,7 +466,7 @@ fun FulfillOrderBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = ActionGreen)
             ) {
                 if (isSubmitting) {
@@ -466,14 +475,13 @@ fun FulfillOrderBottomSheet(
                         color = Color.White,
                         strokeWidth = 2.dp
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Updating...", fontWeight = FontWeight.Bold)
                 } else {
-                    Icon(Icons.Default.Check, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        if (order.status == "FULFILLED") "Save Updated Weights" else "Complete Order & Fulfill",
-                        fontWeight = FontWeight.Bold
+                        text = stringResource(R.string.seller_fulfill_confirm),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
                     )
                 }
             }

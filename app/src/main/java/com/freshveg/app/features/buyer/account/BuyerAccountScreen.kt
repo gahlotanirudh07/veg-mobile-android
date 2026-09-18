@@ -2,6 +2,7 @@ package com.freshveg.app.features.buyer.account
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,18 +22,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.freshveg.app.BuildConfig
+import com.freshveg.app.R
 import com.freshveg.app.core.datastore.SessionManager
+import com.freshveg.app.core.i18n.AppLanguage
+import com.freshveg.app.core.i18n.LanguageManager
 import com.freshveg.app.core.network.ConnectedSellerDto
 import com.freshveg.app.core.network.VegApiService
-import com.freshveg.app.BuildConfig
 import com.freshveg.app.core.ui.components.UpdatePromptDialog
+import com.freshveg.app.core.ui.theme.*
 import com.freshveg.app.core.update.AppUpdateManager
 import com.freshveg.app.core.update.UpdateDownloadState
 import com.freshveg.app.core.update.UpdateInfo
-import com.freshveg.app.core.ui.theme.*
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
@@ -49,34 +55,33 @@ fun BuyerAccountScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    var restaurantName by remember { mutableStateOf("Restaurant Buyer") }
-    var mobile by remember { mutableStateOf("") }
+    var buyerName by remember { mutableStateOf("") }
+    var buyerPhone by remember { mutableStateOf("") }
+    var shopName by remember { mutableStateOf("") }
     var connectedSeller by remember { mutableStateOf<ConnectedSellerDto?>(null) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    val updateState by (updateManager?.updateState?.collectAsState() ?: remember { mutableStateOf(UpdateDownloadState.Idle) })
+    val currentLang by (LanguageManager.instance?.currentLanguage ?: remember { mutableStateOf(AppLanguage.ENGLISH) }).let {
+        if (it is StateFlow<*>) (it as StateFlow<AppLanguage>).collectAsState() else remember { mutableStateOf(AppLanguage.ENGLISH) }
+    }
+
+    var isCheckingUpdates by remember { mutableStateOf(false) }
+    var availableUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
     var showUpdateDialog by remember { mutableStateOf(false) }
-    var isCheckingUpdate by remember { mutableStateOf(false) }
-    var activeUpdateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+    val downloadState by (updateManager?.updateState ?: remember { mutableStateOf(UpdateDownloadState.Idle) }).let {
+        if (it is StateFlow<*>) (it as StateFlow<UpdateDownloadState>).collectAsState() else remember { mutableStateOf(UpdateDownloadState.Idle) }
+    }
 
     LaunchedEffect(Unit) {
-        val bizName = sessionManager.businessName.firstOrNull()
-        val uName = sessionManager.userName.firstOrNull()
-        val mob = sessionManager.savedMobile.firstOrNull() ?: ""
-        
-        if (!bizName.isNullOrBlank()) {
-            restaurantName = bizName
-        } else if (!uName.isNullOrBlank()) {
-            restaurantName = uName
-        }
-        mobile = mob
-
+        buyerName = sessionManager.userName.firstOrNull() ?: "Restaurant Buyer"
+        buyerPhone = sessionManager.userMobile.firstOrNull() ?: ""
+        shopName = sessionManager.businessName.firstOrNull() ?: "Fresh Veg Direct"
         try {
             val sellerRes = apiService.getConnectedSeller()
             if (sellerRes.isSuccessful) {
                 connectedSeller = sellerRes.body()?.data
             }
-        } catch (e: Exception) {}
+        } catch (_: Exception) {}
     }
 
     Scaffold(
@@ -84,63 +89,71 @@ fun BuyerAccountScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Restaurant Account",
+                        text = stringResource(R.string.account_title),
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MainInk
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CardSurface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SecondarySurface)
             )
         },
-        containerColor = BackgroundSurface
+        containerColor = SecondarySurface
     ) { padding ->
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(vertical = 12.dp)
         ) {
-            // 1. Restaurant Profile Card
+            // Profile Card
             item {
-                Card(
+                Surface(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = ForestGreenPrimary),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    color = Color.White,
+                    border = BorderStroke(0.75.dp, BorderSubtle),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
+                        modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(52.dp)
+                                .size(56.dp)
                                 .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.2f)),
+                                .background(ActionGreen.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Restaurant, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                            Text("🏪", fontSize = 28.sp)
                         }
 
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(restaurantName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = Color.White)
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text("📱 $mobile", style = MaterialTheme.typography.bodySmall, color = Color(0xFFE8F5E9))
+                            Text(
+                                text = shopName.ifBlank { buyerName },
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MainInk
+                            )
+                            Text(
+                                text = if (buyerPhone.isNotBlank()) "+91 $buyerPhone" else stringResource(R.string.account_role_buyer),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = InkSecondary
+                            )
                             Spacer(modifier = Modifier.height(4.dp))
                             Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = Color.White.copy(alpha = 0.25f)
+                                shape = RoundedCornerShape(4.dp),
+                                color = ActionGreen.copy(alpha = 0.12f)
                             ) {
                                 Text(
-                                    text = "VERIFIED RESTAURANT BUYER",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    text = stringResource(R.string.account_role_buyer),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ActionGreen,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
                         }
@@ -148,253 +161,285 @@ fun BuyerAccountScreen(
                 }
             }
 
-            // 2. Connected Wholesale Supplier Card
-            connectedSeller?.let { seller ->
-                item {
-                    Text("Connected Wholesale Supplier", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                }
-
-                item {
-                    Card(
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = CardSurface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                        modifier = Modifier.fillMaxWidth()
+            // Language Switcher Tile
+            item {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color.White,
+                    border = BorderStroke(0.75.dp, BorderSubtle),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { LanguageManager.instance?.toggleLanguage() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFE8F5E9)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Column {
-                                    Text(seller.businessName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                    Text("Seller Code: ${seller.sellerCode ?: "N/A"}", style = MaterialTheme.typography.labelSmall, color = ForestGreenPrimary)
-                                }
-
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    IconButton(
-                                        onClick = {
-                                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${seller.mobile}"))
-                                            context.startActivity(intent)
-                                        },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(Icons.Default.Phone, contentDescription = "Call", tint = ForestGreenPrimary)
-                                    }
-
-                                    IconButton(
-                                        onClick = {
-                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/91${seller.mobile}"))
-                                            context.startActivity(intent)
-                                        },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "WhatsApp", tint = ForestGreenPrimary)
-                                    }
-                                }
+                                Icon(Icons.Default.Language, contentDescription = null, tint = ActionGreen, modifier = Modifier.size(20.dp))
                             }
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.account_change_language),
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MainInk
+                                )
+                                Text(
+                                    text = if (currentLang == AppLanguage.HINDI) "वर्तमान भाषा: हिन्दी" else "Current: English",
+                                    fontSize = 12.sp,
+                                    color = InkSecondary
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = ActionGreen.copy(alpha = 0.1f)
+                        ) {
+                            Text(
+                                text = if (currentLang == AppLanguage.HINDI) "🇮🇳 हिन्दी" else "🇬🇧 EN",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp,
+                                color = ActionGreen,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
                         }
                     }
                 }
             }
 
-            // 3. Quick Navigation Hub
+            // Operations Quick Links
             item {
-                Text("Orders & Billing", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            }
-
-            item {
-                Card(
+                Surface(
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardSurface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    color = Color.White,
+                    border = BorderStroke(0.75.dp, BorderSubtle),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
-                        BuyerAccountActionRow(
-                            icon = Icons.Default.LocalShipping,
-                            title = "My Orders & Deliveries",
-                            subtitle = "Check active orders, status & delivered weighments",
-                            iconTint = ForestGreenPrimary,
+                        AccountActionTile(
+                            icon = Icons.Filled.LocalShipping,
+                            title = stringResource(R.string.orders_title),
+                            subtitle = "Track orders & physical scale weighments",
                             onClick = onNavigateToOrders
                         )
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
-                        BuyerAccountActionRow(
+                        HorizontalDivider(color = BorderSubtle, modifier = Modifier.padding(horizontal = 14.dp))
+                        AccountActionTile(
                             icon = Icons.AutoMirrored.Filled.ReceiptLong,
-                            title = "My Tax Bills & Invoices",
-                            subtitle = "View GST invoices, download slips & check dues",
-                            iconTint = Color(0xFF1976D2),
+                            title = stringResource(R.string.invoices_title),
+                            subtitle = "GST invoices & account khata ledger",
                             onClick = onNavigateToInvoices
                         )
                     }
                 }
             }
 
-            // 3. Section: Language & Preferences
+            // Support & Helplines
             item {
-                val langManager = com.freshveg.app.core.i18n.LanguageManager.instance
-                val currentLang = langManager?.currentLanguage?.collectAsState()?.value ?: com.freshveg.app.core.i18n.AppLanguage.ENGLISH
-
-                Card(
+                Surface(
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardSurface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    color = Color.White,
+                    border = BorderStroke(0.75.dp, BorderSubtle),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    BuyerAccountActionRow(
-                        icon = Icons.Default.Language,
-                        title = if (currentLang == com.freshveg.app.core.i18n.AppLanguage.HINDI) "भाषा: हिन्दी (🇮🇳)" else "Language: English (🇬🇧)",
-                        subtitle = if (currentLang == com.freshveg.app.core.i18n.AppLanguage.HINDI) "Switch to English" else "हिन्दी में बदलें",
-                        iconTint = Color(0xFF1E88E5),
-                        onClick = {
-                            langManager?.toggleLanguage()
-                        }
-                    )
+                    Column {
+                        AccountActionTile(
+                            icon = Icons.Default.HeadsetMic,
+                            title = stringResource(R.string.account_support),
+                            subtitle = "Call or message MandiExpress helpline",
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:18001234567"))
+                                context.startActivity(intent)
+                            }
+                        )
+                    }
                 }
             }
 
-            // 4. Section: Version & In-App Updates
+            // App Version & OTA Updates
             item {
-                Card(
+                Surface(
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardSurface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    color = Color.White,
+                    border = BorderStroke(0.75.dp, BorderSubtle),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    BuyerAccountActionRow(
-                        icon = Icons.Default.SystemUpdate,
-                        title = "Check for Updates (ऐप अपडेट)",
-                        subtitle = if (isCheckingUpdate) "Checking latest version..." else "Version v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})",
-                        iconTint = ActionGreen,
-                        onClick = {
-                            if (!isCheckingUpdate && updateManager != null) {
-                                coroutineScope.launch {
-                                    isCheckingUpdate = true
-                                    val info = updateManager.checkForUpdates()
-                                    isCheckingUpdate = false
-                                    if (info.isUpdateAvailable) {
-                                        activeUpdateInfo = info
-                                        showUpdateDialog = true
-                                    } else {
-                                        android.widget.Toast.makeText(
-                                            context,
-                                            "MandiExpress is up to date (v${BuildConfig.VERSION_NAME})",
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.account_app_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MainInk
+                                )
+                                Text(
+                                    text = "Automated OTA Updater Enabled",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = InkSecondary
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    updateManager?.let { mgr ->
+                                        coroutineScope.launch {
+                                            isCheckingUpdates = true
+                                            val update = mgr.checkForUpdates()
+                                            isCheckingUpdates = false
+                                            if (update.isUpdateAvailable) {
+                                                availableUpdate = update
+                                                showUpdateDialog = true
+                                            }
+                                        }
                                     }
+                                },
+                                enabled = !isCheckingUpdates,
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                if (isCheckingUpdates) {
+                                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp)
+                                } else {
+                                    Text("Check Update", fontSize = 11.5.sp)
                                 }
                             }
                         }
-                    )
+                    }
                 }
             }
 
-            // 5. Logout Button
+            // Logout Tile
             item {
-                Spacer(modifier = Modifier.height(6.dp))
-                Button(
-                    onClick = { showLogoutDialog = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE)),
-                    shape = RoundedCornerShape(12.dp),
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color.White,
+                    border = BorderStroke(0.75.dp, BorderSubtle),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .clickable { showLogoutDialog = true }
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = Color(0xFFD32F2F))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Log Out from Account", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MutedRedError.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = MutedRedError, modifier = Modifier.size(20.dp))
+                        }
+                        Text(
+                            text = stringResource(R.string.auth_logout),
+                            fontWeight = FontWeight.Bold,
+                            color = MutedRedError,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
         }
     }
 
-    if (showUpdateDialog && activeUpdateInfo != null && updateManager != null) {
-        UpdatePromptDialog(
-            updateInfo = activeUpdateInfo!!,
-            downloadState = updateState,
-            onStartDownload = {
-                coroutineScope.launch {
-                    updateManager.downloadAndInstall(activeUpdateInfo!!.downloadUrl)
-                }
-            },
-            onInstall = {
-                if (updateState is UpdateDownloadState.ReadyToInstall) {
-                    updateManager.installApk((updateState as UpdateDownloadState.ReadyToInstall).apkFile)
-                }
-            },
-            onDismiss = {
-                showUpdateDialog = false
-                updateManager.resetState()
-            }
-        )
-    }
-
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("Confirm Logout", fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to log out?") },
+            title = { Text(stringResource(R.string.auth_logout)) },
+            text = { Text(stringResource(R.string.auth_logout_confirm)) },
             confirmButton = {
                 Button(
                     onClick = {
                         showLogoutDialog = false
-                        coroutineScope.launch {
-                            sessionManager.clearSession()
-                            onLogout()
-                        }
+                        onLogout()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                    colors = ButtonDefaults.buttonColors(containerColor = MutedRedError)
                 ) {
-                    Text("Log Out", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.auth_logout))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
+        )
+    }
+
+    if (showUpdateDialog && availableUpdate != null) {
+        UpdatePromptDialog(
+            updateInfo = availableUpdate!!,
+            downloadState = downloadState,
+            onStartDownload = {
+                updateManager?.let { mgr ->
+                    coroutineScope.launch {
+                        mgr.downloadAndInstall(availableUpdate!!.downloadUrl)
+                    }
+                }
+            },
+            onInstall = {
+                if (downloadState is UpdateDownloadState.ReadyToInstall) {
+                    updateManager?.installApk((downloadState as UpdateDownloadState.ReadyToInstall).apkFile)
+                }
+            },
+            onDismiss = { showUpdateDialog = false }
         )
     }
 }
 
 @Composable
-fun BuyerAccountActionRow(
+fun AccountActionTile(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    iconTint: Color,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.weight(1f)
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(iconTint.copy(alpha = 0.12f)),
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(SecondarySurface),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
+                Icon(icon, contentDescription = null, tint = MainInk, modifier = Modifier.size(20.dp))
             }
-
             Column {
-                Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                Text(subtitle, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium, color = MainInk)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = InkSecondary)
             }
         }
-
-        Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(16.dp))
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = InkSecondary, modifier = Modifier.size(20.dp))
     }
 }

@@ -1,402 +1,423 @@
 package com.freshveg.app.features.buyer.catalogue
 
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import com.freshveg.app.R
+import com.freshveg.app.core.i18n.AppLanguage
+import com.freshveg.app.core.i18n.LanguageManager
+import com.freshveg.app.core.network.CategoryDto
 import com.freshveg.app.core.network.ProductDto
 import com.freshveg.app.core.ui.ProduceThumbnailBadge
+import com.freshveg.app.core.ui.ProduceVisualUtils
 import com.freshveg.app.core.ui.animation.bounceClick
 import com.freshveg.app.core.ui.animation.rememberShimmerBrush
-import com.freshveg.app.core.ui.animation.rememberTactileHaptic
-import com.freshveg.app.core.ui.components.AnimatedOdometerText
 import com.freshveg.app.core.ui.theme.*
 import com.freshveg.app.core.utils.MandiTranslationUtils
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BuyerCatalogueScreen(
-    onNavigateToOrders: () -> Unit,
-    onNavigateToInvoices: () -> Unit,
-    onLogout: () -> Unit,
-    onNavigateBack: (() -> Unit)? = null,
-    viewModel: BuyerCatalogueViewModel = hiltViewModel()
+    viewModel: BuyerCatalogueViewModel,
+    onNavigateToOrders: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
+    val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val triggerHaptic = rememberTactileHaptic()
+    val scope = rememberCoroutineScope()
+    val currentLang by (LanguageManager.instance?.currentLanguage ?: remember { mutableStateOf(AppLanguage.ENGLISH) }).let {
+        if (it is StateFlow<*>) (it as StateFlow<AppLanguage>).collectAsState() else remember { mutableStateOf(AppLanguage.ENGLISH) }
+    }
 
-    var selectedCategory by remember { mutableStateOf("Frequent") }
-
-    LaunchedEffect(uiState.errorMessage) {
-        uiState.errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearError()
+    LaunchedEffect(state.orderSuccessDto) {
+        state.orderSuccessDto?.let {
+            snackbarHostState.showSnackbar(
+                message = "Morning Order #${it.id.takeLast(6)} Placed Successfully! Supplier Notified.",
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearOrderSuccess()
         }
     }
 
-    // Filter products by selected category
-    val categoryFilteredProducts = remember(uiState.filteredProducts, selectedCategory) {
-        when (selectedCategory) {
-            "Frequent" -> {
-                // Return frequently ordered wholesale staples first
-                val frequentKeys = listOf("tomato", "potato", "onion", "chilli", "ginger", "garlic", "coriander", "palak")
-                val matched = uiState.filteredProducts.filter { prod ->
-                    val name = prod.safeName.lowercase()
-                    frequentKeys.any { name.contains(it) }
-                }
-                if (matched.isNotEmpty()) matched else uiState.filteredProducts
-            }
-            "All" -> uiState.filteredProducts
-            "Roots" -> uiState.filteredProducts.filter { prod ->
-                val name = prod.safeName.lowercase()
-                name.contains("potato") || name.contains("aloo") || name.contains("ginger") || name.contains("adrak") || name.contains("garlic") || name.contains("lahsun") || name.contains("carrot") || name.contains("gajar") || name.contains("radish") || name.contains("mooli") || name.contains("beetroot")
-            }
-            "Greens" -> uiState.filteredProducts.filter { prod ->
-                val name = prod.safeName.lowercase()
-                name.contains("palak") || name.contains("spinach") || name.contains("methi") || name.contains("coriander") || name.contains("dhaniya") || name.contains("pudina") || name.contains("mint") || name.contains("cabbage") || name.contains("gobhi")
-            }
-            "Essentials" -> uiState.filteredProducts.filter { prod ->
-                val name = prod.safeName.lowercase()
-                name.contains("tomato") || name.contains("tamatar") || name.contains("onion") || name.contains("pyaz") || name.contains("chili") || name.contains("mirch")
-            }
-            "Gourds" -> uiState.filteredProducts.filter { prod ->
-                val name = prod.safeName.lowercase()
-                name.contains("kheera") || name.contains("cucumber") || name.contains("lauki") || name.contains("karela") || name.contains("torai") || name.contains("gourd")
-            }
-            else -> uiState.filteredProducts
+    LaunchedEffect(state.errorMessage) {
+        state.errorMessage?.let {
+            snackbarHostState.showSnackbar(
+                message = it,
+                duration = SnackbarDuration.Long
+            )
+            viewModel.clearError()
         }
     }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    if (onNavigateBack != null) {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MainInk
-                            )
-                        }
-                    }
-                },
-                title = {
-                    Column {
-                        Text(
-                            text = uiState.connectedSeller?.businessName ?: "Wholesale Yard",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MainInk
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                text = "⏰ Order cutoff: ${uiState.cutoffTime}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = AmberWarning,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            if (uiState.connectedSeller?.sellerCode != null) {
-                                Text(
-                                    text = "• ${uiState.connectedSeller?.sellerCode}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = InkTertiary
-                                )
-                            }
-                        }
-                    }
-                },
-                actions = {
-                    // Call Seller
-                    uiState.connectedSeller?.mobile?.let { phone ->
-                        IconButton(onClick = {
-                            triggerHaptic()
-                            try {
-                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
-                                context.startActivity(intent)
-                            } catch (_: Exception) {}
-                        }) {
-                            Icon(
-                                imageVector = Icons.Filled.Phone,
-                                contentDescription = "Call Seller",
-                                tint = ActionGreen
-                            )
-                        }
-                    }
-
-                    // Refresh
-                    IconButton(onClick = {
-                        triggerHaptic()
-                        viewModel.loadStorefront()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
-                            tint = InkSecondary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = NeutralSurface)
-            )
-        },
+        containerColor = SecondarySurface,
         bottomBar = {
-            // High-Trust Animated Sticky Bottom Cart Dock
             AnimatedVisibility(
-                visible = uiState.cartItemCount > 0,
+                visible = state.cartItemCount > 0,
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
                 exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
             ) {
                 Surface(
-                    color = MainInk,
-                    shadowElevation = 8.dp,
-                    shape = RoundedCornerShape(16.dp),
+                    color = Color.Transparent,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                        .bounceClick {
-                            triggerHaptic()
-                            viewModel.openCart()
-                        }
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    ElevatedCard(
+                        onClick = { viewModel.openCart() },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = ActionGreen),
+                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(HarvestLime),
-                                contentAlignment = Alignment.Center
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.ShoppingCart,
-                                    contentDescription = null,
-                                    tint = MainInk,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "${uiState.cartItemCount} Items Selected",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.titleSmall
-                                )
-                                AnimatedOdometerText(
-                                    value = uiState.cartEstimatedTotal.toInt(),
-                                    prefix = "Est: ₹",
-                                    textStyle = MaterialTheme.typography.bodySmall.copy(
-                                        color = HarvestLime,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                            }
-                        }
-
-                        Button(
-                            onClick = {
-                                triggerHaptic()
-                                viewModel.openCart()
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = ActionGreen,
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                        ) {
-                            Text("Review Order →", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                    }
-                }
-            }
-        },
-        containerColor = BackgroundCanvas
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // 1. Search Bar & Category Filter Bar
-            Surface(
-                color = NeutralSurface,
-                border = BorderStroke(1.dp, BorderSubtle),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                    OutlinedTextField(
-                        value = uiState.searchQuery,
-                        onValueChange = viewModel::onSearchQueryChange,
-                        placeholder = {
-                            Text(
-                                "Search produce (e.g. Potato, tamatar, pyaz)...",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = InkTertiary
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = InkSecondary
-                            )
-                        },
-                        trailingIcon = {
-                            if (uiState.searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Clear search",
-                                        tint = InkSecondary
+                                        imageVector = Icons.Outlined.ShoppingCart,
+                                        contentDescription = "Cart",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                Column {
+                                    Text(
+                                        text = stringResource(R.string.buyer_cart_items_count, state.cartItemCount),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "Estimated: ${ProduceVisualUtils.formatCurrency(state.cartEstimatedTotal)}",
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 12.sp,
+                                        color = Color.White.copy(alpha = 0.9f)
                                     )
                                 }
                             }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ActionGreen,
-                            unfocusedBorderColor = BorderSubtle,
-                            focusedContainerColor = SecondarySurface,
-                            unfocusedContainerColor = SecondarySurface
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // 2. Category Filter Chips (Frequent as first option)
-                    val categories = listOf("Frequent", "All", "Roots", "Greens", "Essentials", "Gourds")
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(categories) { cat ->
-                            val isSelected = selectedCategory == cat
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    triggerHaptic()
-                                    selectedCategory = cat
-                                },
-                                label = {
-                                    Text(
-                                        text = if (cat == "All") "All (${uiState.filteredProducts.size})" else cat,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        fontSize = 12.5.sp
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = ActionGreen,
-                                    selectedLabelColor = Color.White,
-                                    containerColor = SecondarySurface,
-                                    labelColor = MainInk
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                border = null
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.buyer_cart_bar_title),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color.White
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.ArrowForward,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
-
-            // 3. Dense Produce List with Botanical Vector Badges
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
             LazyColumn(
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding(),
+                contentPadding = PaddingValues(bottom = if (state.cartItemCount > 0) 80.dp else 16.dp)
             ) {
-                // Shimmer Loading Skeleton State
-                if (uiState.isLoading && uiState.products.isEmpty()) {
-                    items(6) {
-                        ProduceRowSkeleton()
-                    }
-                } else if (categoryFilteredProducts.isEmpty()) {
-                    item {
+                // Top Header with Supplier & Language Switch
+                item {
+                    Surface(
+                        color = Color.White,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(40.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.SearchOff,
-                                contentDescription = null,
-                                tint = InkTertiary,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "No produce found matching '${uiState.searchQuery}'",
-                                fontWeight = FontWeight.Bold,
-                                color = MainInk
-                            )
-                            Text(
-                                text = "Try searching by English or Hindi produce name",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = InkSecondary
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.nav_catalogue),
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MainInk
+                                    )
+                                    state.connectedSeller?.let { seller ->
+                                        Text(
+                                            text = stringResource(R.string.buyer_supplier_info, seller.businessName.ifBlank { seller.primaryContactName ?: "Supplier" }),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = ActionGreen
+                                        )
+                                    }
+                                }
+
+                                // Language Toggle Chip
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = SecondarySurface,
+                                    border = BorderStroke(1.dp, BorderSubtle),
+                                    modifier = Modifier.clickable {
+                                        LanguageManager.instance?.toggleLanguage()
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = if (currentLang == AppLanguage.HINDI) "🇮🇳 हिन्दी" else "🇬🇧 EN",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            color = MainInk
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            // Cutoff Warning Banner
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFFFFF8E1),
+                                border = BorderStroke(0.5.dp, Color(0xFFFFE082)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.buyer_order_cutoff, state.cutoffTime),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFE65100)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Search Field
+                            OutlinedTextField(
+                                value = state.searchQuery,
+                                onValueChange = { viewModel.onSearchQueryChange(it) },
+                                placeholder = {
+                                    Text(
+                                        text = stringResource(R.string.buyer_search_produce),
+                                        fontSize = 13.5.sp,
+                                        color = InkTertiary
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Search,
+                                        contentDescription = "Search",
+                                        tint = InkSecondary
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (state.searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Clear",
+                                                tint = InkSecondary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = ActionGreen,
+                                    unfocusedBorderColor = BorderSubtle,
+                                    focusedContainerColor = SecondarySurface,
+                                    unfocusedContainerColor = SecondarySurface
+                                ),
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
+                }
+
+                // Category Chips Row
+                item {
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                            .padding(vertical = 8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item {
+                            CategoryFilterChip(
+                                title = stringResource(R.string.buyer_category_all),
+                                isSelected = state.selectedCategoryId == "ALL",
+                                onClick = { viewModel.selectCategory("ALL") }
+                            )
+                        }
+                        items(state.categories, key = { it.id }) { cat ->
+                            CategoryFilterChip(
+                                title = cat.name,
+                                isSelected = state.selectedCategoryId == cat.id,
+                                onClick = { viewModel.selectCategory(cat.id) }
+                            )
+                        }
+                    }
+                }
+
+                // Frequent Staples Banner (1-Tap Reorder from Last Order)
+                if (state.lastOrder != null && state.cartItemCount == 0) {
+                    item {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFFE8F5E9),
+                            border = BorderStroke(1.dp, ActionGreen.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.buyer_frequent_reorder),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = MainInk
+                                    )
+                                    Text(
+                                        text = "${state.lastOrder?.items?.size ?: 0} items from previous delivery",
+                                        fontSize = 11.5.sp,
+                                        color = InkSecondary
+                                    )
+                                }
+
+                                Button(
+                                    onClick = { viewModel.reorderAllFromLastOrder() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = ActionGreen),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text("Reorder All", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Loading Shimmer Skeletons
+                if (state.isLoading && state.products.isEmpty()) {
+                    items(6) {
+                        ProduceRowSkeleton(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+                    }
+                } else if (state.filteredProducts.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("🥬", fontSize = 48.sp)
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = stringResource(R.string.common_no_data),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MainInk
+                                )
+                            }
+                        }
+                    }
                 } else {
-                    items(categoryFilteredProducts, key = { it.id }) { product ->
-                        val qtyInCart = uiState.cart[product.id] ?: 0.0
-                        CompactBuyerProduceRow(
+                    items(state.filteredProducts, key = { it.id }) { product ->
+                        val qtyInCart = state.cart[product.id] ?: 0.0
+                        ModernWholesaleProduceCard(
                             product = product,
                             quantityInCart = qtyInCart,
-                            onIncrement = {
-                                triggerHaptic()
-                                viewModel.incrementQuantity(product)
-                            },
-                            onDecrement = {
-                                triggerHaptic()
-                                viewModel.decrementQuantity(product)
-                            },
-                            onAddQuickQuantity = { addQty ->
-                                triggerHaptic()
-                                val current = uiState.cart[product.id] ?: 0.0
-                                viewModel.setQuantity(product.id, current + addQty)
-                            }
+                            onQuantityChanged = { newQty -> viewModel.setQuantity(product.id, newQty) },
+                            onIncrement = { viewModel.incrementQuantity(product) },
+                            onDecrement = { viewModel.decrementQuantity(product) },
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                         )
                     }
                 }
@@ -404,247 +425,295 @@ fun BuyerCatalogueScreen(
         }
     }
 
-    // Modal 1: Buyer Cart Drawer with Zero-Trust Transparency
-    if (uiState.isCartOpen) {
+    if (state.isCartOpen) {
         BuyerCartBottomSheet(
-            cartItems = uiState.cartItemsList,
-            onUpdateQuantity = viewModel::setQuantity,
-            onRemoveItem = viewModel::removeFromCart,
-            onClearCart = viewModel::clearCart,
-            onDismiss = viewModel::closeCart,
-            onPlaceOrder = viewModel::placeOrder,
-            isPlacingOrder = uiState.isPlacingOrder
+            cartItems = state.cartItemsList,
+            estimatedTotal = state.cartEstimatedTotal,
+            isPlacingOrder = state.isPlacingOrder,
+            onUpdateQuantity = { id, qty -> viewModel.setQuantity(id, qty) },
+            onRemoveItem = { id -> viewModel.removeFromCart(id) },
+            onClearCart = { viewModel.clearCart() },
+            onPlaceOrder = { notes -> viewModel.placeOrder(notes) },
+            onDismiss = { viewModel.closeCart() }
         )
     }
+}
 
-    // Modal 2: Order Placed Congratulatory Dialog
-    uiState.orderSuccessDto?.let { order ->
-        AlertDialog(
-            onDismissRequest = viewModel::clearOrderSuccess,
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = ActionGreen,
-                    modifier = Modifier.size(48.dp)
-                )
-            },
-            title = {
-                Text(
-                    text = "Order Placed Successfully",
-                    fontWeight = FontWeight.Bold,
-                    color = MainInk
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = "Order Number: #${order.orderNumber}",
-                        fontWeight = FontWeight.Bold,
-                        color = ActionGreen
-                    )
-                    Text(
-                        text = "Your early morning produce requirement has been submitted to ${uiState.connectedSeller?.businessName ?: "Wholesale Vendor"}.",
-                        color = MainInk
-                    )
-                    Text(
-                        text = "Expected delivery: Tomorrow morning between 05:00 AM – 07:00 AM.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = InkSecondary
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.clearOrderSuccess()
-                        onNavigateToOrders()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = ActionGreen),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Track Order Status", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = viewModel::clearOrderSuccess,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Continue Browsing", color = MainInk)
-                }
-            }
+@Composable
+fun CategoryFilterChip(
+    title: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = if (isSelected) ActionGreen else NeutralSurface,
+        border = BorderStroke(1.dp, if (isSelected) ActionGreen else BorderSubtle),
+        modifier = Modifier.bounceClick(onClick = onClick)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = if (isSelected) Color.White else MainInk,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
         )
     }
 }
 
 /**
- * High-density compact produce row.
- * Features botanical vector art badge, clear English/Hindi typography, and wholesale 1-tap chips (+5, +10, +25 kg).
+ * Modern Wholesale Produce Card (Blinkit / Zepto Layout)
+ * Right-aligned SVG badge, direct numeric typing, quick wholesale steppers (+0.5, +1, +5, +10 kg).
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun CompactBuyerProduceRow(
+fun ModernWholesaleProduceCard(
     product: ProductDto,
     quantityInCart: Double,
+    onQuantityChanged: (Double) -> Unit,
     onIncrement: () -> Unit,
     onDecrement: () -> Unit,
-    onAddQuickQuantity: (Double) -> Unit
+    modifier: Modifier = Modifier
 ) {
-    val safeName = product.safeName
-    val hindiName = product.hindiName ?: MandiTranslationUtils.translateEnglishToHindi(safeName)
-    val unitName = product.unitType?.name ?: "KG"
+    val unitName = product.unitType.name.lowercase()
+    val hindiName = product.hindiName ?: MandiTranslationUtils.translateEnglishToHindi(product.safeName)
+    val view = LocalView.current
+    val focusManager = LocalFocusManager.current
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val coroutineScope = rememberCoroutineScope()
 
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = NeutralSurface,
-        border = BorderStroke(1.dp, BorderSubtle),
-        modifier = Modifier.fillMaxWidth()
+    var textInput by remember(quantityInCart) {
+        mutableStateOf(if (quantityInCart > 0.0) ProduceVisualUtils.formatQuantityValue(quantityInCart) else "")
+    }
+
+    fun triggerHaptic() {
+        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+    }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoViewRequester),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = BorderStroke(0.75.dp, BorderSubtle)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                // Botanical Artwork Badge & Bilingual Name
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.weight(1f)
+                // Left Column: Produce Info & Pricing
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    ProduceThumbnailBadge(
-                        name = safeName,
-                        hindiName = hindiName,
-                        imageUrl = product.imageUrl,
-                        size = 52.dp,
-                        cornerRadius = 12.dp
+                    Text(
+                        text = product.safeName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MainInk,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+
+                    if (!hindiName.isNullOrBlank()) {
                         Text(
-                            text = safeName,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MainInk
+                            text = hindiName,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = InkSecondary
                         )
-                        if (hindiName != null) {
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Pricing Row
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "₹${product.effectivePrice.toInt()}/$unitName",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = ActionGreen
+                        )
+
+                        val origBasePrice = product.basePrice
+                        if (origBasePrice != null && origBasePrice > product.effectivePrice) {
                             Text(
-                                text = hindiName,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = InkSecondary
+                                text = "₹${origBasePrice.toInt()}",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    textDecoration = TextDecoration.LineThrough
+                                ),
+                                color = InkTertiary,
+                                fontWeight = FontWeight.Medium
                             )
                         }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                text = "₹${product.currentPrice.toInt()} / $unitName",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = ActionGreen,
-                                fontWeight = FontWeight.Bold
-                            )
 
-                            if (product.basePrice != null && product.basePrice > product.currentPrice) {
+                        if ((product.discountAmountPerUnit ?: 0.0) > 0.0) {
+                            Surface(
+                                color = ActionGreen.copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
                                 Text(
-                                    text = "₹${product.basePrice.toInt()}",
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                                    ),
-                                    color = InkTertiary,
-                                    fontWeight = FontWeight.Medium
+                                    text = if (product.discountType == "PERCENTAGE") "${product.discountValue?.toInt()}% OFF" else "₹${product.discountValue?.toInt() ?: product.discountAmountPerUnit?.toInt()} OFF",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = ActionGreen,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                 )
                             }
+                        }
+                    }
+                }
 
-                            if ((product.discountAmountPerUnit ?: 0.0) > 0.0) {
-                                Surface(
-                                    color = ActionGreen.copy(alpha = 0.12f),
-                                    shape = RoundedCornerShape(4.dp)
+                // Right Column: Artwork Badge + Stepper Action
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ProduceThumbnailBadge(
+                        name = product.safeName,
+                        hindiName = hindiName,
+                        imageUrl = product.imageUrl,
+                        size = 64.dp,
+                        cornerRadius = 12.dp
+                    )
+
+                    // Add Button or Numeric Input Stepper
+                    if (quantityInCart == 0.0) {
+                        Button(
+                            onClick = {
+                                triggerHaptic()
+                                onIncrement()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = ActionGreen),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .height(38.dp)
+                                .bounceClick {
+                                    triggerHaptic()
+                                    onIncrement()
+                                }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(stringResource(R.string.buyer_add_to_cart), fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = NeutralSurface,
+                            border = BorderStroke(1.dp, ActionGreen.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                modifier = Modifier.padding(2.dp)
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        triggerHaptic()
+                                        onDecrement()
+                                    },
+                                    modifier = Modifier.size(28.dp)
                                 ) {
-                                    Text(
-                                        text = if (product.discountType == "PERCENTAGE") "${product.discountValue?.toInt()}% OFF" else "₹${product.discountValue?.toInt() ?: product.discountAmountPerUnit?.toInt()} OFF",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = ActionGreen,
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    Icon(
+                                        imageVector = Icons.Default.Remove,
+                                        contentDescription = "Decrease",
+                                        tint = MainInk,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+
+                                // Direct Numeric Editable Text Box
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color.White,
+                                    border = BorderStroke(0.75.dp, BorderSubtle),
+                                    modifier = Modifier
+                                        .width(52.dp)
+                                        .height(28.dp)
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        BasicTextField(
+                                            value = textInput,
+                                            onValueChange = { newVal ->
+                                                val filtered = newVal.filter { it.isDigit() || it == '.' }
+                                                textInput = filtered
+                                                val parsed = filtered.toDoubleOrNull()
+                                                if (parsed != null && parsed >= 0) {
+                                                    onQuantityChanged(parsed)
+                                                }
+                                            },
+                                            singleLine = true,
+                                            textStyle = TextStyle(
+                                                fontSize = 12.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                textAlign = TextAlign.Center,
+                                                color = MainInk
+                                            ),
+                                            keyboardOptions = KeyboardOptions(
+                                                keyboardType = KeyboardType.Decimal,
+                                                imeAction = ImeAction.Done
+                                            ),
+                                            keyboardActions = KeyboardActions(
+                                                onDone = {
+                                                    focusManager.clearFocus()
+                                                    val parsed = textInput.toDoubleOrNull() ?: 0.0
+                                                    onQuantityChanged(parsed)
+                                                }
+                                            ),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .onFocusEvent { focusState ->
+                                                    if (focusState.isFocused) {
+                                                        coroutineScope.launch {
+                                                            bringIntoViewRequester.bringIntoView()
+                                                        }
+                                                    }
+                                                }
+                                        )
+                                    }
+                                }
+
+                                IconButton(
+                                    onClick = {
+                                        triggerHaptic()
+                                        onIncrement()
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Increase",
+                                        tint = ActionGreen,
+                                        modifier = Modifier.size(14.dp)
                                     )
                                 }
                             }
                         }
                     }
                 }
-
-                // Stepper (- [Qty] +) or (+ ADD) with 48dp Touch Targets
-                if (quantityInCart == 0.0) {
-                    Button(
-                        onClick = onIncrement,
-                        colors = ButtonDefaults.buttonColors(containerColor = ActionGreen),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                        modifier = Modifier
-                            .height(42.dp)
-                            .bounceClick(onClick = onIncrement)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("ADD", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                } else {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        IconButton(
-                            onClick = onDecrement,
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(SecondarySurface)
-                                .bounceClick(onClick = onDecrement)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Remove,
-                                contentDescription = "Decrease",
-                                tint = MainInk,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        Text(
-                            text = "${quantityInCart.toInt()} $unitName",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MainInk,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-
-                        IconButton(
-                            onClick = onIncrement,
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(ActionGreen)
-                                .bounceClick(onClick = onIncrement)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Increase",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                }
             }
 
-            // Wholesale Quick-Add Chips (+5, +10, +25 kg) - Visible when item in cart
+            // Quick Wholesale Increment Steppers (+0.5 kg, +1 kg, +5 kg, +10 kg)
             if (quantityInCart > 0.0) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -652,27 +721,24 @@ fun CompactBuyerProduceRow(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Quick add: ",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = InkTertiary
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    listOf(5.0, 10.0, 25.0).forEach { quickQty ->
+                    listOf(0.5, 1.0, 5.0, 10.0).forEach { quickQty ->
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(6.dp),
                             color = SecondarySurface,
                             border = BorderStroke(0.5.dp, BorderSubtle),
                             modifier = Modifier
-                                .padding(horizontal = 3.dp)
-                                .bounceClick { onAddQuickQuantity(quickQty) }
+                                .padding(horizontal = 2.dp)
+                                .bounceClick {
+                                    triggerHaptic()
+                                    onQuantityChanged(quantityInCart + quickQty)
+                                }
                         ) {
                             Text(
-                                text = "+${quickQty.toInt()} $unitName",
+                                text = "+${ProduceVisualUtils.formatQuantityValue(quickQty)} $unitName",
                                 color = ActionGreen,
-                                fontSize = 11.5.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                             )
                         }
                     }
@@ -682,16 +748,13 @@ fun CompactBuyerProduceRow(
     }
 }
 
-/**
- * Shimmer placeholder skeleton for zero-wait visual feedback.
- */
 @Composable
-fun ProduceRowSkeleton() {
+fun ProduceRowSkeleton(modifier: Modifier = Modifier) {
     val shimmerBrush = rememberShimmerBrush()
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(72.dp),
+            .height(80.dp),
         shape = RoundedCornerShape(14.dp),
         color = NeutralSurface,
         border = BorderStroke(1.dp, BorderSubtle)
@@ -705,7 +768,7 @@ fun ProduceRowSkeleton() {
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(54.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(shimmerBrush)
             )
@@ -715,7 +778,7 @@ fun ProduceRowSkeleton() {
             ) {
                 Box(
                     modifier = Modifier
-                        .width(130.dp)
+                        .width(120.dp)
                         .height(14.dp)
                         .clip(RoundedCornerShape(4.dp))
                         .background(shimmerBrush)
@@ -730,12 +793,11 @@ fun ProduceRowSkeleton() {
             }
             Box(
                 modifier = Modifier
-                    .width(64.dp)
-                    .height(34.dp)
+                    .width(70.dp)
+                    .height(36.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(shimmerBrush)
             )
         }
     }
 }
-

@@ -1,3 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App &amp; Common Core -->
     <string name="app_name">MandiExpress</string>
+    <string name="common_save">Save</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_edit">Edit</string>
+    <string name="common_back">Back</string>
+    <string name="common_close">Close</string>
+    <string name="common_search">Search...</string>
+    <string name="common_filter">Filter</string>
+    <string name="common_all">All</string>
+    <string name="common_refresh">Refresh</string>
+    <string name="common_done">Done</string>
+    <string name="common_submit">Submit</string>
+    <string name="common_update">Update</string>
+    <string name="common_confirm">Confirm</string>
+    <string name="common_loading">Loading...</string>
+    <string name="common_success">Success</string>
+    <string name="common_error">Something went wrong</string>
+    <string name="common_total">Total</string>
+    <string name="common_qty">Qty</string>
+    <string name="common_price">Price</string>
+    <string name="common_rate">Rate</string>
+    <string name="common_rupee">₹</string>
+    <string name="common_per_kg">/ kg</string>
+    <string name="common_kg">kg</string>
+    <string name="common_crate">crate</string>
+    <string name="common_quintal">qtl</string>
+    <string name="common_bunch">bunch</string>
+    <string name="common_piece">pc</string>
+    <string name="common_items">items</string>
+    <string name="common_no_data">No data available</string>
+    <string name="common_phone">Phone Number</string>
+    <string name="common_call">Call</string>
+    <string name="common_whatsapp">WhatsApp</string>
+    <string name="common_date">Date</string>
+    <string name="common_status">Status</string>
+    <string name="common_share">Share</string>
+    <string name="common_download">Download</string>
+    <string name="common_view_details">View Details</string>
+    <string name="common_server_reconnecting">Connecting to Mandi Server (DB Starting Up)...</string>
+    <string name="common_pull_to_refresh">Pull down to refresh</string>
+
+    <!-- Language Selection -->
+    <string name="lang_title">Language / भाषा</string>
+    <string name="lang_english">English</string>
+    <string name="lang_hindi">हिन्दी (Hindi)</string>
+    <string name="lang_select_prompt">Choose your preferred language</string>
+
+    <!-- Navigation &amp; Roles -->
+    <string name="nav_home">Home</string>
+    <string name="nav_catalogue">Catalogue</string>
+    <string name="nav_orders">Orders</string>
+    <string name="nav_invoices">Invoices</string>
+    <string name="nav_khata">Khata</string>
+    <string name="nav_rates">Rates</string>
+    <string name="nav_products">Products</string>
+    <string name="nav_tally">Tally</string>
+    <string name="nav_customers">Customers</string>
+    <string name="nav_analytics">Analytics</string>
+    <string name="nav_account">Account</string>
+
+    <!-- Auth Screens -->
+    <string name="auth_login_title">MandiExpress Login</string>
+    <string name="auth_login_subtitle">Direct Wholesale Mandi Supply</string>
+    <string name="auth_enter_phone">Enter 10-Digit Mobile Number</string>
+    <string name="auth_enter_password">Password</string>
+    <string name="auth_login_button">Sign In to Mandi</string>
+    <string name="auth_register_buyer">Register as Buyer (Restaurant / Retailer)</string>
+    <string name="auth_register_seller">Register as Wholesaler (Mandi Arhatiya)</string>
+    <string name="auth_buyer_title">Buyer Registration</string>
+    <string name="auth_seller_title">Wholesaler Registration</string>
+    <string name="auth_shop_name">Shop / Business / Restaurant Name</string>
+    <string name="auth_contact_name">Owner / Contact Person Name</string>
+    <string name="auth_mandi_name">Mandi Yard / Market Name</string>
+    <string name="auth_address">Delivery Address</string>
+    <string name="auth_seller_code">Supplier / Seller Referral Code</string>
+    <string name="auth_seller_code_helper">Enter 6-digit code provided by your Mandi supplier</string>
+    <string name="auth_register_submit">Complete Registration</string>
+    <string name="auth_already_account">Already registered? Sign In</string>
+    <string name="auth_logout">Sign Out</string>
+    <string name="auth_logout_confirm">Are you sure you want to log out?</string>
+
+    <!-- Buyer Catalogue &amp; Produce Cards -->
+    <string name="buyer_search_produce">Search 100+ fresh vegetables, herbs, roots...</string>
+    <string name="buyer_wholesale_price">Wholesale Rate</string>
+    <string name="buyer_custom_rate">Special Rate</string>
+    <string name="buyer_market_rate">Market Rate</string>
+    <string name="buyer_in_stock">In Stock</string>
+    <string name="buyer_out_of_stock">Out of Stock</string>
+    <string name="buyer_add_to_cart">+ Add</string>
+    <string name="buyer_added_to_cart">Added</string>
+    <string name="buyer_qty_kg">Quantity (kg)</string>
+    <string name="buyer_enter_qty">Enter Qty</string>
+    <string name="buyer_chip_half_kg">+0.5 kg</string>
+    <string name="buyer_chip_one_kg">+1 kg</string>
+    <string name="buyer_chip_five_kg">+5 kg</string>
+    <string name="buyer_chip_ten_kg">+10 kg</string>
+    <string name="buyer_chip_crate">+1 Crate</string>
+    <string name="buyer_cart_bar_title">View Basket</string>
+    <string name="buyer_cart_items_count">%1$d Items</string>
+    <string name="buyer_cart_total">Estimated: ₹%1$s</string>
+    <string name="buyer_cart_title">Review Morning Order</string>
+    <string name="buyer_cart_empty">Your mandi cart is empty</string>
+    <string name="buyer_cart_empty_sub">Add fresh vegetables from the catalogue to place order</string>
+    <string name="buyer_cart_clear">Clear Cart</string>
+    <string name="buyer_cart_note">Special Dispatch Notes (e.g. Clean spinach, small onions)</string>
+    <string name="buyer_place_order">Confirm &amp; Send Morning Order</string>
+    <string name="buyer_order_placed_success">Order placed successfully! Supplier notified.</string>
+    <string name="buyer_category_all">All Produce</string>
+    <string name="buyer_category_staples">Daily Staples</string>
+    <string name="buyer_category_leafy">Leafy Greens</string>
+    <string name="buyer_category_roots">Roots &amp; Tubers</string>
+    <string name="buyer_category_gourds">Gourds &amp; Squash</string>
+    <string name="buyer_category_peppers">Peppers &amp; Chillies</string>
+    <string name="buyer_category_herbs">Herbs &amp; Seasoning</string>
+    <string name="buyer_category_exotic">Exotics</string>
+
+    <!-- Buyer Home &amp; Hub -->
+    <string name="buyer_home_greeting">Namaste, %1$s</string>
+    <string name="buyer_supplier_info">Wholesale Supplier: %1$s</string>
+    <string name="buyer_order_cutoff">⏰ Order cutoff: %1$s</string>
+    <string name="buyer_outstanding_dues">Khata Balance Dues</string>
+    <string name="buyer_active_orders">Active Morning Orders</string>
+    <string name="buyer_frequent_reorder">Frequent Staples (1-Tap Reorder)</string>
+    <string name="buyer_browse_full_catalogue">Browse Full Mandi Catalogue →</string>
+
+    <!-- Buyer Orders &amp; Deliveries -->
+    <string name="orders_title">My Orders &amp; Deliveries</string>
+    <string name="orders_tab_all">All</string>
+    <string name="orders_tab_pending">Pending</string>
+    <string name="orders_tab_confirmed">Confirmed</string>
+    <string name="orders_tab_fulfilled">Delivered</string>
+    <string name="orders_tab_cancelled">Cancelled</string>
+    <string name="orders_empty">No orders found</string>
+    <string name="orders_item_count">%1$d produce items</string>
+    <string name="orders_ordered_qty">Ordered: %1$s</string>
+    <string name="orders_weighed_qty">Delivered: %1$s</string>
+    <string name="orders_total_bill">Total Bill: ₹%1$s</string>
+    <string name="orders_call_supplier">Call Supplier</string>
+    <string name="orders_chat_whatsapp">WhatsApp</string>
+
+    <!-- Invoices &amp; Khata -->
+    <string name="invoices_title">GST Tax Invoices &amp; Billing</string>
+    <string name="invoices_tab_all">All Invoices</string>
+    <string name="invoices_tab_unpaid">Unpaid Dues</string>
+    <string name="invoices_tab_paid">Paid</string>
+    <string name="invoices_empty">No invoices found</string>
+    <string name="invoices_download_pdf">Download PDF Invoice</string>
+    <string name="invoices_mark_paid">Mark as Paid</string>
+    <string name="invoices_total_outstanding">Total Outstanding Balance</string>
+    <string name="invoices_due_date">Due Date: %1$s</string>
+    <string name="khata_title">Customer Khata &amp; Ledger</string>
+    <string name="khata_credit_limit">Credit Limit: ₹%1$s</string>
+    <string name="khata_pay_upi">Pay via UPI QR</string>
+    <string name="khata_record_payment">Record Payment</string>
+    <string name="khata_statement">Account Statement</string>
+
+    <!-- Seller Operations &amp; Rates -->
+    <string name="seller_home_title">Mandi Operations Hub</string>
+    <string name="seller_today_dispatch">"Today's Morning Dispatch"</string>
+    <string name="seller_today_tally">Morning Mandi Tally</string>
+    <string name="seller_live_orders">Live Incoming Orders</string>
+    <string name="seller_rates_title">Daily Rate Card Manager</string>
+    <string name="seller_rates_subtitle">1-Thumb Price Steppers &amp; Availability Lock</string>
+    <string name="seller_lock_rates">Save &amp; Lock Daily Rates</string>
+    <string name="seller_rate_saved">Daily rate card saved &amp; synced live!</string>
+    <string name="seller_fast_fulfill_all">⚡ Complete Order (All Weights Match)</string>
+    <string name="seller_scale_fulfill_title">Weigh &amp; Dispatch Order</string>
+    <string name="seller_ordered_weight">Ordered Weight</string>
+    <string name="seller_delivered_weight">Actual Weighed Weight</string>
+    <string name="seller_tare_zero">Exact Match (0.0 kg)</string>
+    <string name="seller_tare_diff">Variance: %1$s kg</string>
+    <string name="seller_fulfill_confirm">Generate Invoice &amp; Dispatch</string>
+    <string name="seller_dispatch_success">Order fulfilled and invoice generated!</string>
+    <string name="seller_products_title">Produce Master Catalogue</string>
+    <string name="seller_add_product">+ Add New Vegetable</string>
+    <string name="seller_tally_title">Mandi Purchase &amp; Margin Tally</string>
+    <string name="seller_add_purchase">+ Add Mandi Lot Purchase</string>
+    <string name="seller_add_expense">+ Add Operational Expense</string>
+    <string name="seller_analytics_title">Wholesale Business Reports</string>
+    <string name="seller_share_code">Share Supplier Code with Buyers</string>
+
+    <!-- Account &amp; Settings -->
+    <string name="account_title">Account &amp; Settings</string>
+    <string name="account_role_buyer">Verified Buyer Account</string>
+    <string name="account_role_seller">Mandi Wholesaler Account</string>
+    <string name="account_change_language">Change App Language (भाषा बदलें)</string>
+    <string name="account_app_version">MandiExpress App v%1$s (Build %2$d)</string>
+    <string name="account_support">Mandi Helpline / Support</string>
+    <string name="account_terms">Terms &amp; Conditions</string>
+
+    <!-- OTA Updater -->
+    <string name="update_title">Update Available</string>
+    <string name="update_message">A new version (%1$s) of MandiExpress is ready to install with important performance improvements.</string>
+    <string name="update_btn_install">Install Update Now</string>
+    <string name="update_btn_later">Later</string>
+    <string name="update_downloading">Downloading update %1$d%%...</string>
 </resources>

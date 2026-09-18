@@ -1,6 +1,8 @@
 package com.freshveg.app.core.i18n
 
 import android.content.Context
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -45,7 +48,11 @@ class LanguageManager @Inject constructor(
                 val code = prefs[KEY_LANG] ?: AppLanguage.ENGLISH.code
                 val lang = if (code == "hi") AppLanguage.HINDI else AppLanguage.ENGLISH
                 _currentLanguage.value = lang
-            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    val appLocale = LocaleListCompat.forLanguageTags(lang.code)
+                    AppCompatDelegate.setApplicationLocales(appLocale)
+                }
+            } catch (_: Exception) {
                 _currentLanguage.value = AppLanguage.ENGLISH
             }
         }
@@ -54,8 +61,14 @@ class LanguageManager @Inject constructor(
     fun setLanguage(language: AppLanguage) {
         _currentLanguage.value = language
         scope.launch {
-            context.langDataStore.edit { prefs ->
-                prefs[KEY_LANG] = language.code
+            try {
+                context.langDataStore.edit { prefs ->
+                    prefs[KEY_LANG] = language.code
+                }
+            } catch (_: Exception) {}
+            withContext(Dispatchers.Main) {
+                val appLocale = LocaleListCompat.forLanguageTags(language.code)
+                AppCompatDelegate.setApplicationLocales(appLocale)
             }
         }
     }

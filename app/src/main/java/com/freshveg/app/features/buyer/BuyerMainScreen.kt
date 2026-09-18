@@ -1,23 +1,31 @@
 package com.freshveg.app.features.buyer
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.freshveg.app.R
 import com.freshveg.app.core.datastore.SessionManager
 import com.freshveg.app.core.network.VegApiService
-import com.freshveg.app.core.ui.animation.rememberTactileHaptic
 import com.freshveg.app.core.ui.theme.*
+import com.freshveg.app.core.update.AppUpdateManager
 import com.freshveg.app.features.buyer.account.BuyerAccountScreen
 import com.freshveg.app.features.buyer.catalogue.BuyerCatalogueScreen
+import com.freshveg.app.features.buyer.catalogue.BuyerCatalogueViewModel
 import com.freshveg.app.features.buyer.home.BuyerHomeScreen
 import com.freshveg.app.features.buyer.invoices.BuyerInvoicesScreen
 import com.freshveg.app.features.buyer.orders.BuyerOrdersScreen
@@ -26,17 +34,22 @@ import com.freshveg.app.features.buyer.orders.BuyerOrdersScreen
 fun BuyerMainScreen(
     sessionManager: SessionManager,
     apiService: VegApiService,
-    updateManager: com.freshveg.app.core.update.AppUpdateManager? = null,
+    updateManager: AppUpdateManager? = null,
     onLogout: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val triggerHaptic = rememberTactileHaptic()
+    val view = LocalView.current
+    val catalogueViewModel: BuyerCatalogueViewModel = hiltViewModel()
+
+    fun triggerHaptic() {
+        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+    }
 
     Scaffold(
         bottomBar = {
             NavigationBar(
-                containerColor = NeutralSurface,
-                tonalElevation = 3.dp
+                containerColor = Color.White,
+                tonalElevation = 8.dp
             ) {
                 // Tab 0: Home
                 NavigationBarItem(
@@ -48,12 +61,12 @@ fun BuyerMainScreen(
                     icon = {
                         Icon(
                             imageVector = if (selectedTab == 0) Icons.Filled.Home else Icons.Outlined.Home,
-                            contentDescription = "Home"
+                            contentDescription = stringResource(R.string.nav_home)
                         )
                     },
                     label = {
                         Text(
-                            text = "Home",
+                            text = stringResource(R.string.nav_home),
                             fontSize = 11.sp,
                             fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium
                         )
@@ -77,12 +90,12 @@ fun BuyerMainScreen(
                     icon = {
                         Icon(
                             imageVector = if (selectedTab == 1) Icons.Filled.Storefront else Icons.Outlined.Storefront,
-                            contentDescription = "Catalogue"
+                            contentDescription = stringResource(R.string.nav_catalogue)
                         )
                     },
                     label = {
                         Text(
-                            text = "Catalogue",
+                            text = stringResource(R.string.nav_catalogue),
                             fontSize = 11.sp,
                             fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium
                         )
@@ -96,7 +109,7 @@ fun BuyerMainScreen(
                     )
                 )
 
-                // Tab 2: Orders (Tracking & History)
+                // Tab 2: Orders
                 NavigationBarItem(
                     selected = selectedTab == 2,
                     onClick = {
@@ -106,12 +119,12 @@ fun BuyerMainScreen(
                     icon = {
                         Icon(
                             imageVector = if (selectedTab == 2) Icons.Filled.LocalShipping else Icons.Outlined.LocalShipping,
-                            contentDescription = "Orders"
+                            contentDescription = stringResource(R.string.nav_orders)
                         )
                     },
                     label = {
                         Text(
-                            text = "Orders",
+                            text = stringResource(R.string.nav_orders),
                             fontSize = 11.sp,
                             fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Medium
                         )
@@ -125,7 +138,7 @@ fun BuyerMainScreen(
                     )
                 )
 
-                // Tab 3: Khata (Invoices & Balance)
+                // Tab 3: Khata / Invoices
                 NavigationBarItem(
                     selected = selectedTab == 3,
                     onClick = {
@@ -135,12 +148,12 @@ fun BuyerMainScreen(
                     icon = {
                         Icon(
                             imageVector = if (selectedTab == 3) Icons.AutoMirrored.Filled.ReceiptLong else Icons.AutoMirrored.Outlined.ReceiptLong,
-                            contentDescription = "Khata"
+                            contentDescription = stringResource(R.string.nav_khata)
                         )
                     },
                     label = {
                         Text(
-                            text = "Khata",
+                            text = stringResource(R.string.nav_khata),
                             fontSize = 11.sp,
                             fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Medium
                         )
@@ -154,7 +167,7 @@ fun BuyerMainScreen(
                     )
                 )
 
-                // Tab 4: Account (Restaurant Profile, Connected Seller & Settings)
+                // Tab 4: Account
                 NavigationBarItem(
                     selected = selectedTab == 4,
                     onClick = {
@@ -164,12 +177,12 @@ fun BuyerMainScreen(
                     icon = {
                         Icon(
                             imageVector = if (selectedTab == 4) Icons.Filled.Person else Icons.Outlined.Person,
-                            contentDescription = "Account"
+                            contentDescription = stringResource(R.string.nav_account)
                         )
                     },
                     label = {
                         Text(
-                            text = "Account",
+                            text = stringResource(R.string.nav_account),
                             fontSize = 11.sp,
                             fontWeight = if (selectedTab == 4) FontWeight.Bold else FontWeight.Medium
                         )
@@ -211,13 +224,8 @@ fun BuyerMainScreen(
                     onLogout = onLogout
                 )
                 1 -> BuyerCatalogueScreen(
-                    onNavigateToOrders = { selectedTab = 2 },
-                    onNavigateToInvoices = { selectedTab = 3 },
-                    onNavigateBack = {
-                        triggerHaptic()
-                        selectedTab = 0
-                    },
-                    onLogout = onLogout
+                    viewModel = catalogueViewModel,
+                    onNavigateToOrders = { selectedTab = 2 }
                 )
                 2 -> BuyerOrdersScreen(
                     onNavigateBack = {

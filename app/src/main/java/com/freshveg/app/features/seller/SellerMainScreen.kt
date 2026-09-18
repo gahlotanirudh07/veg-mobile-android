@@ -1,22 +1,28 @@
 package com.freshveg.app.features.seller
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.freshveg.app.core.datastore.SessionManager
-import com.freshveg.app.core.ui.animation.rememberTactileHaptic
-import com.freshveg.app.core.ui.theme.*
-import com.freshveg.app.features.seller.account.SellerAccountScreen
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.freshveg.app.R
+import com.freshveg.app.core.datastore.SessionManager
+import com.freshveg.app.core.ui.theme.*
+import com.freshveg.app.core.update.AppUpdateManager
+import com.freshveg.app.features.seller.account.SellerAccountScreen
 import com.freshveg.app.features.seller.home.SellerHomeScreen
 import com.freshveg.app.features.seller.home.SellerHomeViewModel
 import com.freshveg.app.features.seller.ledger.CustomerLedgerScreen
@@ -26,35 +32,33 @@ import com.freshveg.app.features.seller.rates.SellerRatesScreen
 @Composable
 fun SellerMainScreen(
     sessionManager: SessionManager,
-    updateManager: com.freshveg.app.core.update.AppUpdateManager? = null,
-    homeViewModel: SellerHomeViewModel = hiltViewModel(),
+    updateManager: AppUpdateManager? = null,
+    hideMasterCatalogue: Boolean = false,
     onNavigateToStore: () -> Unit = {},
-    onNavigateToRates: () -> Unit,
-    onNavigateToTally: () -> Unit,
-    onNavigateToCustomers: () -> Unit,
-    onNavigateToInvoices: () -> Unit,
-    onNavigateToAnalytics: () -> Unit,
-    onNavigateToAdmin: () -> Unit,
+    onNavigateToRates: () -> Unit = {},
+    onNavigateToCustomers: () -> Unit = {},
+    onNavigateToInvoices: () -> Unit = {},
+    onNavigateToAnalytics: () -> Unit = {},
+    onNavigateToTally: () -> Unit = {},
+    onNavigateToAdmin: () -> Unit = {},
     onLogout: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val hideMasterCatalogue by sessionManager.hideMasterCatalogue.collectAsState(initial = false)
+    val view = LocalView.current
+    val homeViewModel: SellerHomeViewModel = hiltViewModel()
     val homeUiState by homeViewModel.uiState.collectAsState()
-    val triggerHaptic = rememberTactileHaptic()
 
-    LaunchedEffect(selectedTab) {
-        if (selectedTab == 0) {
-            homeViewModel.loadData()
-        }
+    fun triggerHaptic() {
+        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
     }
 
     Scaffold(
         bottomBar = {
             NavigationBar(
-                containerColor = NeutralSurface,
-                tonalElevation = 3.dp
+                containerColor = Color.White,
+                tonalElevation = 8.dp
             ) {
-                // Tab 0: Home (Operations Command Hub)
+                // Tab 0: Home
                 NavigationBarItem(
                     selected = selectedTab == 0,
                     onClick = {
@@ -63,13 +67,13 @@ fun SellerMainScreen(
                     },
                     icon = {
                         Icon(
-                            imageVector = if (selectedTab == 0) Icons.Filled.Home else Icons.Outlined.Home,
-                            contentDescription = "Home"
+                            imageVector = if (selectedTab == 0) Icons.Filled.Storefront else Icons.Outlined.Storefront,
+                            contentDescription = stringResource(R.string.nav_home)
                         )
                     },
                     label = {
                         Text(
-                            text = "Home",
+                            text = stringResource(R.string.nav_home),
                             fontSize = 11.sp,
                             fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium
                         )
@@ -83,7 +87,7 @@ fun SellerMainScreen(
                     )
                 )
 
-                // Tab 1: Orders (5-Stage Pipeline & Weighment)
+                // Tab 1: Orders Pipeline
                 NavigationBarItem(
                     selected = selectedTab == 1,
                     onClick = {
@@ -93,12 +97,12 @@ fun SellerMainScreen(
                     icon = {
                         Icon(
                             imageVector = if (selectedTab == 1) Icons.Filled.LocalShipping else Icons.Outlined.LocalShipping,
-                            contentDescription = "Orders"
+                            contentDescription = stringResource(R.string.nav_orders)
                         )
                     },
                     label = {
                         Text(
-                            text = "Orders",
+                            text = stringResource(R.string.nav_orders),
                             fontSize = 11.sp,
                             fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium
                         )
@@ -112,7 +116,7 @@ fun SellerMainScreen(
                     )
                 )
 
-                // Tab 2: Rates (4:00 AM Rate Board)
+                // Tab 2: Rates
                 NavigationBarItem(
                     selected = selectedTab == 2,
                     onClick = {
@@ -122,12 +126,12 @@ fun SellerMainScreen(
                     icon = {
                         Icon(
                             imageVector = if (selectedTab == 2) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Outlined.TrendingUp,
-                            contentDescription = "Rates"
+                            contentDescription = stringResource(R.string.nav_rates)
                         )
                     },
                     label = {
                         Text(
-                            text = "Rates",
+                            text = stringResource(R.string.nav_rates),
                             fontSize = 11.sp,
                             fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Medium
                         )
@@ -141,7 +145,7 @@ fun SellerMainScreen(
                     )
                 )
 
-                // Tab 3: Khata (Customer Ledger & Aging Dues)
+                // Tab 3: Khata
                 NavigationBarItem(
                     selected = selectedTab == 3,
                     onClick = {
@@ -151,12 +155,12 @@ fun SellerMainScreen(
                     icon = {
                         Icon(
                             imageVector = if (selectedTab == 3) Icons.Filled.AccountBalanceWallet else Icons.Outlined.AccountBalanceWallet,
-                            contentDescription = "Khata"
+                            contentDescription = stringResource(R.string.nav_khata)
                         )
                     },
                     label = {
                         Text(
-                            text = "Khata",
+                            text = stringResource(R.string.nav_khata),
                             fontSize = 11.sp,
                             fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Medium
                         )
@@ -170,7 +174,7 @@ fun SellerMainScreen(
                     )
                 )
 
-                // Tab 4: Profile & Business Settings
+                // Tab 4: Account / Profile
                 NavigationBarItem(
                     selected = selectedTab == 4,
                     onClick = {
@@ -180,12 +184,12 @@ fun SellerMainScreen(
                     icon = {
                         Icon(
                             imageVector = if (selectedTab == 4) Icons.Filled.Person else Icons.Outlined.Person,
-                            contentDescription = "Profile"
+                            contentDescription = stringResource(R.string.nav_account)
                         )
                     },
                     label = {
                         Text(
-                            text = "Profile",
+                            text = stringResource(R.string.nav_account),
                             fontSize = 11.sp,
                             fontWeight = if (selectedTab == 4) FontWeight.Bold else FontWeight.Medium
                         )
@@ -264,4 +268,3 @@ fun SellerMainScreen(
         }
     }
 }
-
