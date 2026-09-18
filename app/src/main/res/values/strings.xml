@@ -199,4 +199,5 @@
     <string name="update_btn_install">Install Update Now</string>
     <string name="update_btn_later">Later</string>
     <string name="update_downloading">Downloading update %1$d%%...</string>
+    <string name="update_already_latest">You are using the latest version of MandiExpress (v%1$s).</string>
 </resources>

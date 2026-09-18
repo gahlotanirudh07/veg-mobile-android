@@ -32,10 +32,10 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --no-daemon
+        run: ./gradlew testDebugUnitTest -PversionCode=${{ github.run_number }} -PversionName=1.1.${{ github.run_number }} -PgitSha=${{ github.sha }} --no-daemon
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug -PversionCode=${{ github.run_number }} -PversionName=1.1.${{ github.run_number }} -PgitSha=${{ github.sha }} --no-daemon
 
       - name: Rename APK for Release Distribution
         run: cp app/build/outputs/apk/debug/app-debug.apk MandiExpress.apk
@@ -51,20 +51,23 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: "MandiExpress Latest Continuous Release"
+          tag_name: v1.1.${{ github.run_number }}
+          name: "MandiExpress v1.1.${{ github.run_number }} (Build #${{ github.run_number }})"
           body: |
-            ## 🚀 MandiExpress Android App (Continuous Release)
+            ## 🚀 MandiExpress Android App v1.1.${{ github.run_number }}
 
             - **Direct APK Download**: [MandiExpress.apk](https://github.com/gahlotanirudh07/veg-mobile-android/releases/latest/download/MandiExpress.apk)
+            - **Version**: `1.1.${{ github.run_number }}`
+            - **Build**: `${{ github.run_number }}`
             - **Commit**: `${{ github.sha }}`
             - **Built**: `${{ github.event.head_commit.timestamp || 'Latest Push' }}`
             
             ### ✨ Included Features:
             - 📲 **In-App OTA Self-Updater**: 1-tap download & install directly from within the app.
-            - 📈 **Morning Rate Board**: Real-time mandi rates with instant price locks.
-            - 📦 **Order Pipeline & Weighment**: Offline-first fulfillment with live synchronization.
-            - 🧾 **Digital Khata & Tax Invoices**: Automated ledger & WhatsApp payment reminders.
+            - 🔢 **Direct Decimal Quantity Input**: Type 2.5, 3.5, 15 directly on catalogue cards.
+            - ⚡ **Seller Fast Fulfill**: Pre-filled scale weights & 1-tap dispatch.
+            - 🇮🇳 **Hindi + English Localization**: Authentic Mandi vocabulary with 1-tap language switch.
+            - 🛡️ **Zero-Kill Resilience**: Auto-retry on database sleep/cold-start.
           files: MandiExpress.apk
           prerelease: false
           make_latest: true

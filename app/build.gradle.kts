@@ -10,12 +10,19 @@ android {
     namespace = "com.freshveg.app"
     compileSdk = 35
 
+    val appVersionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: 2
+    val appVersionName = project.findProperty("versionName")?.toString() ?: "1.1.0"
+    val gitSha = project.findProperty("gitSha")?.toString() ?: "local"
+
     defaultConfig {
         applicationId = "com.mandiexpress.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
+
+        buildConfigField("String", "GIT_SHA", "\"${gitSha}\"")
+        buildConfigField("long", "BUILD_TIME_MILLIS", "${System.currentTimeMillis()}L")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

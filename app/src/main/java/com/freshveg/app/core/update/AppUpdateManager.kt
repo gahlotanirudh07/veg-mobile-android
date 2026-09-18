@@ -3,6 +3,8 @@ package com.freshveg.app.core.update
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.freshveg.app.BuildConfig
 import com.freshveg.app.core.network.AppVersionDto
@@ -19,6 +21,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -46,13 +51,16 @@ sealed class UpdateDownloadState {
 data class GitHubReleaseAsset(
     @SerializedName("name") val name: String = "",
     @SerializedName("browser_download_url") val browserDownloadUrl: String = "",
-    @SerializedName("size") val size: Long = 0L
+    @SerializedName("size") val size: Long = 0L,
+    @SerializedName("updated_at") val updatedAt: String? = null
 )
 
 data class GitHubReleaseResponse(
     @SerializedName("tag_name") val tagName: String = "",
     @SerializedName("name") val name: String? = null,
     @SerializedName("body") val body: String? = null,
+    @SerializedName("published_at") val publishedAt: String? = null,
+    @SerializedName("updated_at") val updatedAt: String? = null,
     @SerializedName("assets") val assets: List<GitHubReleaseAsset>? = null
 )
 
@@ -66,6 +74,9 @@ class AppUpdateManager @Inject constructor(
     private val _updateState = MutableStateFlow<UpdateDownloadState>(UpdateDownloadState.Idle)
     val updateState: StateFlow<UpdateDownloadState> = _updateState.asStateFlow()
 
+    var lastCheckedInfo: UpdateInfo? = null
+        private set
+
     companion object {
         const val DEFAULT_APK_DOWNLOAD_URL =
             "https://github.com/gahlotanirudh07/veg-mobile-android/releases/latest/download/MandiExpress.apk"
@@ -73,12 +84,21 @@ class AppUpdateManager @Inject constructor(
             "https://api.github.com/repos/gahlotanirudh07/veg-mobile-android/releases/latest"
 
         /**
-         * Compares semantic version strings like "1.0.1" vs "1.0.0" or "v1.2.0" vs "1.1.9".
+         * Extracts semantic version numbers like "1.1.2" or "1.0" from text strings.
+         */
+        fun extractSemanticVersion(text: String?): String? {
+            if (text.isNullOrBlank()) return null
+            val match = Regex("""(?i)v?(\d+(?:\.\d+)+)""").find(text)
+            return match?.groupValues?.getOrNull(1)
+        }
+
+        /**
+         * Compares semantic version strings like "1.1.0" vs "1.0.0" or "v1.2.0" vs "1.1.9".
          * Returns >0 if remote is newer, <0 if older, 0 if equal.
          */
         fun compareSemanticVersions(remote: String, current: String): Int {
-            val cleanRemote = remote.trim().removePrefix("v").removePrefix("V")
-            val cleanCurrent = current.trim().removePrefix("v").removePrefix("V")
+            val cleanRemote = extractSemanticVersion(remote) ?: remote.trim().removePrefix("v").removePrefix("V")
+            val cleanCurrent = extractSemanticVersion(current) ?: current.trim().removePrefix("v").removePrefix("V")
 
             val remoteParts = cleanRemote.split(".").mapNotNull { part ->
                 part.takeWhile { it.isDigit() }.toIntOrNull()
@@ -100,12 +120,34 @@ class AppUpdateManager @Inject constructor(
 
         fun isUpdateAvailable(
             remoteVersion: String,
-            remoteCode: Int,
+            remoteCode: Int = 0,
             currentVersion: String = BuildConfig.VERSION_NAME,
-            currentCode: Int = BuildConfig.VERSION_CODE
+            currentCode: Int = BuildConfig.VERSION_CODE,
+            remoteSha: String = "",
+            currentSha: String = "",
+            remoteAssetTimeMillis: Long = 0L,
+            currentBuildTimeMillis: Long = 0L
         ): Boolean {
             if (remoteCode > currentCode && remoteCode > 0) return true
-            return compareSemanticVersions(remoteVersion, currentVersion) > 0
+            if (compareSemanticVersions(remoteVersion, currentVersion) > 0) return true
+            if (remoteSha.isNotBlank() && currentSha.isNotBlank() && currentSha != "local" &&
+                !remoteSha.startsWith(currentSha) && !currentSha.startsWith(remoteSha)) return true
+            if (remoteAssetTimeMillis > 0 && currentBuildTimeMillis > 0 &&
+                remoteAssetTimeMillis > currentBuildTimeMillis + 60_000L) return true
+            return false
+        }
+
+        fun parseIsoDateToMillis(isoString: String?): Long {
+            if (isoString.isNullOrBlank()) return 0L
+            return try {
+                val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }
+                val clean = isoString.substringBefore("Z").substringBefore("+").substringBefore(".")
+                format.parse(clean)?.time ?: 0L
+            } catch (_: Exception) {
+                0L
+            }
         }
     }
 
@@ -117,69 +159,113 @@ class AppUpdateManager @Inject constructor(
         var downloadUrl = DEFAULT_APK_DOWNLOAD_URL
         var releaseNotes = ""
         var isForce = false
+        var remoteSha = ""
+        var remoteAssetTimeMillis = 0L
 
         // 1. Try Backend /app/version endpoint first
         try {
             val backendRes = apiService.getAppVersion()
             if (backendRes.isSuccessful && backendRes.body() != null) {
                 val data: AppVersionDto = backendRes.body()!!
-                latestVersion = data.latestVersion
-                latestCode = data.versionCode ?: latestCode
-                downloadUrl = data.downloadUrl ?: DEFAULT_APK_DOWNLOAD_URL
-                releaseNotes = data.releaseNotes ?: ""
+                if (!data.latestVersion.isNullOrBlank()) {
+                    latestVersion = data.latestVersion
+                }
+                if (data.versionCode != null && data.versionCode > 0) {
+                    latestCode = data.versionCode
+                }
+                if (!data.downloadUrl.isNullOrBlank()) {
+                    downloadUrl = data.downloadUrl
+                }
+                if (!data.releaseNotes.isNullOrBlank()) {
+                    releaseNotes = data.releaseNotes
+                }
                 isForce = data.forceUpdate
             }
         } catch (_: Exception) {
-            // Backend endpoint fallback to GitHub direct API
+            // Backend endpoint fallback
         }
 
-        // 2. If backend gave current version or failed, check GitHub Releases API
-        if (latestVersion == BuildConfig.VERSION_NAME) {
-            try {
-                val request = Request.Builder()
-                    .url(GITHUB_LATEST_RELEASE_API)
-                    .header("Accept", "application/vnd.github.v3+json")
-                    .build()
+        // 2. Fetch directly from GitHub Releases API for real-time release details
+        try {
+            val request = Request.Builder()
+                .url(GITHUB_LATEST_RELEASE_API)
+                .header("Accept", "application/vnd.github.v3+json")
+                .header("User-Agent", "MandiExpress-Android")
+                .build()
 
-                okHttpClient.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        val bodyStr = response.body?.string()
-                        if (!bodyStr.isNullOrBlank()) {
-                            val ghRelease = gson.fromJson(bodyStr, GitHubReleaseResponse::class.java)
-                            val tag = ghRelease.tagName.trim().removePrefix("v").removePrefix("V")
-                            if (tag.isNotBlank()) {
-                                latestVersion = tag
+            okHttpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val bodyStr = response.body?.string()
+                    if (!bodyStr.isNullOrBlank()) {
+                        val ghRelease = gson.fromJson(bodyStr, GitHubReleaseResponse::class.java)
+
+                        // Parse tag / release name
+                        val tagVersion = extractSemanticVersion(ghRelease.tagName)
+                        val nameVersion = ghRelease.name?.let { extractSemanticVersion(it) }
+                        val resolvedVersion = tagVersion ?: nameVersion
+                        if (!resolvedVersion.isNullOrBlank()) {
+                            latestVersion = resolvedVersion
+                        }
+
+                        // Parse commit sha and build code from release body
+                        val bodyText = ghRelease.body ?: ""
+                        val shaMatch = Regex("""Commit[:\s*`]+([0-9a-fA-F]{7,40})""").find(bodyText)
+                        if (shaMatch != null) {
+                            remoteSha = shaMatch.groupValues[1]
+                        }
+
+                        val buildCodeMatch = Regex("""Build[:\s*`#]+(\d+)""").find(bodyText)
+                        if (buildCodeMatch != null) {
+                            buildCodeMatch.groupValues[1].toIntOrNull()?.let { bCode ->
+                                if (bCode > latestCode) latestCode = bCode
                             }
-                            releaseNotes = ghRelease.body ?: "Performance improvements and regular updates."
-                            val apkAsset = ghRelease.assets?.firstOrNull { it.name.endsWith(".apk") }
-                            if (apkAsset != null) {
-                                downloadUrl = apkAsset.browserDownloadUrl
-                            }
+                        }
+
+                        if (ghRelease.body?.isNotBlank() == true) {
+                            releaseNotes = ghRelease.body
+                        }
+
+                        val apkAsset = ghRelease.assets?.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
+                        if (apkAsset != null) {
+                            downloadUrl = apkAsset.browserDownloadUrl
+                            remoteAssetTimeMillis = parseIsoDateToMillis(apkAsset.updatedAt)
+                        } else {
+                            remoteAssetTimeMillis = parseIsoDateToMillis(ghRelease.publishedAt ?: ghRelease.updatedAt)
                         }
                     }
                 }
-            } catch (_: Exception) {
-                // Ignore network errors during GitHub release check
             }
+        } catch (_: Exception) {
+            // Ignore network errors during GitHub release check
         }
+
+        // 3. Multi-factor Update Detection Evaluation
+        val currentSha = try { BuildConfig.GIT_SHA } catch (_: Exception) { "local" }
+        val currentBuildTime = try { BuildConfig.BUILD_TIME_MILLIS } catch (_: Exception) { 0L }
 
         val hasUpdate = isUpdateAvailable(
             remoteVersion = latestVersion,
             remoteCode = latestCode,
             currentVersion = BuildConfig.VERSION_NAME,
-            currentCode = BuildConfig.VERSION_CODE
+            currentCode = BuildConfig.VERSION_CODE,
+            remoteSha = remoteSha,
+            currentSha = currentSha,
+            remoteAssetTimeMillis = remoteAssetTimeMillis,
+            currentBuildTimeMillis = currentBuildTime
         )
 
         val info = UpdateInfo(
             isUpdateAvailable = hasUpdate,
-            latestVersionName = latestVersion,
+            latestVersionName = latestVersion.ifBlank { "1.1.0" },
             latestVersionCode = latestCode,
             downloadUrl = downloadUrl,
-            releaseNotes = releaseNotes.ifBlank { "Exciting new features and optimizations for MandiExpress." },
+            releaseNotes = releaseNotes.ifBlank { "Exciting new wholesale features, decimal quantities, seller fast-fulfill & performance optimizations." },
             isForceUpdate = isForce,
             currentVersionName = BuildConfig.VERSION_NAME,
             currentVersionCode = BuildConfig.VERSION_CODE
         )
+
+        lastCheckedInfo = info
 
         if (hasUpdate) {
             _updateState.value = UpdateDownloadState.UpdateAvailable(info)
@@ -265,6 +351,23 @@ class AppUpdateManager @Inject constructor(
 
     fun installApk(apkFile: File) {
         try {
+            if (!apkFile.exists() || apkFile.length() == 0L) {
+                _updateState.value = UpdateDownloadState.Error("Downloaded APK file is empty or missing")
+                return
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (!context.packageManager.canRequestPackageInstalls()) {
+                    val settingsIntent = Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:${context.packageName}")
+                    ).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(settingsIntent)
+                }
+            }
+
             val apkUri: Uri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
@@ -285,4 +388,3 @@ class AppUpdateManager @Inject constructor(
         _updateState.value = UpdateDownloadState.Idle
     }
 }
-

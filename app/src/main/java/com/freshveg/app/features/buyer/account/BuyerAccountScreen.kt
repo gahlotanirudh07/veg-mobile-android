@@ -306,6 +306,12 @@ fun BuyerAccountScreen(
                                             if (update.isUpdateAvailable) {
                                                 availableUpdate = update
                                                 showUpdateDialog = true
+                                            } else {
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    context.getString(R.string.update_already_latest, BuildConfig.VERSION_NAME),
+                                                    android.widget.Toast.LENGTH_SHORT
+                                                ).show()
                                             }
                                         }
                                     }
