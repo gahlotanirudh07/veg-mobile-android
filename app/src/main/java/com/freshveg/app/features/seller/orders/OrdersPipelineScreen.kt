@@ -192,6 +192,123 @@ fun OrdersPipelineScreen(
                             )
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Date & Customer Filter and Sorting Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Date filters
+                        val dateFilters = listOf("ALL" to "All Dates", "TODAY" to "Today", "YESTERDAY" to "Yesterday", "THIS_WEEK" to "This Week")
+                        dateFilters.forEach { (key, label) ->
+                            FilterChip(
+                                selected = uiState.selectedDateFilter == key,
+                                onClick = { viewModel.onSelectDateFilter(key) },
+                                label = { Text(label, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold) },
+                                shape = RoundedCornerShape(20.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Color(0xFF0F766E),
+                                    selectedLabelColor = Color.White,
+                                    containerColor = Color(0xFFF1F5F9),
+                                    labelColor = Color(0xFF334155)
+                                )
+                            )
+                        }
+
+                        VerticalDivider(
+                            modifier = Modifier.height(18.dp),
+                            color = Color(0xFFCBD5E1)
+                        )
+
+                        // Customer Filters
+                        FilterChip(
+                            selected = uiState.selectedCustomer == "ALL",
+                            onClick = { viewModel.onSelectCustomer("ALL") },
+                            leadingIcon = { Icon(Icons.Default.Storefront, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                            label = { Text("All Customers", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold) },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = ActionGreen,
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFFF1F5F9),
+                                labelColor = Color(0xFF334155)
+                            )
+                        )
+
+                        uiState.uniqueCustomers.forEach { custName ->
+                            FilterChip(
+                                selected = uiState.selectedCustomer == custName,
+                                onClick = { viewModel.onSelectCustomer(if (uiState.selectedCustomer == custName) "ALL" else custName) },
+                                label = { Text(custName, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold) },
+                                shape = RoundedCornerShape(20.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = ActionGreen,
+                                    selectedLabelColor = Color.White,
+                                    containerColor = Color(0xFFF1F5F9),
+                                    labelColor = Color(0xFF334155)
+                                )
+                            )
+                        }
+
+                        VerticalDivider(
+                            modifier = Modifier.height(18.dp),
+                            color = Color(0xFFCBD5E1)
+                        )
+
+                        // Sort Controls
+                        FilterChip(
+                            selected = uiState.selectedSortOrder == "NEWEST",
+                            onClick = { viewModel.onSelectSortOrder("NEWEST") },
+                            leadingIcon = { Icon(Icons.Default.ArrowDownward, contentDescription = null, modifier = Modifier.size(13.dp)) },
+                            label = { Text("Newest", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold) },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF1976D2),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFFF1F5F9),
+                                labelColor = Color(0xFF334155)
+                            )
+                        )
+
+                        FilterChip(
+                            selected = uiState.selectedSortOrder == "OLDEST",
+                            onClick = { viewModel.onSelectSortOrder("OLDEST") },
+                            leadingIcon = { Icon(Icons.Default.ArrowUpward, contentDescription = null, modifier = Modifier.size(13.dp)) },
+                            label = { Text("Oldest", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold) },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF1976D2),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFFF1F5F9),
+                                labelColor = Color(0xFF334155)
+                            )
+                        )
+
+                        FilterChip(
+                            selected = uiState.selectedSortOrder == "AMOUNT_HIGH",
+                            onClick = { viewModel.onSelectSortOrder(if (uiState.selectedSortOrder == "AMOUNT_HIGH") "AMOUNT_LOW" else "AMOUNT_HIGH") },
+                            leadingIcon = { Icon(Icons.Default.CurrencyRupee, contentDescription = null, modifier = Modifier.size(13.dp)) },
+                            label = {
+                                Text(
+                                    if (uiState.selectedSortOrder == "AMOUNT_LOW") "Amount: Low → High" else "Amount: High → Low",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFE65100),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFFF1F5F9),
+                                labelColor = Color(0xFF334155)
+                            )
+                        )
+                    }
                 }
             }
 

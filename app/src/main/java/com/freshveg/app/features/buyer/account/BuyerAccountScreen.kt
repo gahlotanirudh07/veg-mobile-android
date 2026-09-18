@@ -9,9 +9,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,7 +49,17 @@ fun BuyerAccountScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        mobile = sessionManager.savedMobile.firstOrNull() ?: ""
+        val bizName = sessionManager.businessName.firstOrNull()
+        val uName = sessionManager.userName.firstOrNull()
+        val mob = sessionManager.savedMobile.firstOrNull() ?: ""
+        
+        if (!bizName.isNullOrBlank()) {
+            restaurantName = bizName
+        } else if (!uName.isNullOrBlank()) {
+            restaurantName = uName
+        }
+        mobile = mob
+
         try {
             val sellerRes = apiService.getConnectedSeller()
             if (sellerRes.isSuccessful) {
@@ -168,7 +179,7 @@ fun BuyerAccountScreen(
                                         },
                                         modifier = Modifier.size(36.dp)
                                     ) {
-                                        Icon(Icons.Default.Chat, contentDescription = "WhatsApp", tint = ForestGreenPrimary)
+                                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "WhatsApp", tint = ForestGreenPrimary)
                                     }
                                 }
                             }
@@ -199,7 +210,7 @@ fun BuyerAccountScreen(
                         )
                         HorizontalDivider(color = Color(0xFFF0F0F0))
                         BuyerAccountActionRow(
-                            icon = Icons.Default.ReceiptLong,
+                            icon = Icons.AutoMirrored.Filled.ReceiptLong,
                             title = "My Tax Bills & Invoices",
                             subtitle = "View GST invoices, download slips & check dues",
                             iconTint = Color(0xFF1976D2),

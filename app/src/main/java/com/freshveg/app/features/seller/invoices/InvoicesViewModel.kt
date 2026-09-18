@@ -5,6 +5,10 @@ import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshveg.app.core.network.*
+import com.freshveg.app.core.utils.isThisWeek
+import com.freshveg.app.core.utils.isToday
+import com.freshveg.app.core.utils.isYesterday
+import com.freshveg.app.core.utils.parseEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,29 +22,79 @@ data class InvoicesUiState(
     val pendingOrders: List<OrderDto> = emptyList(),
     val selectedInvoiceDetail: InvoiceDetailDto? = null,
     val searchQuery: String = "",
+    val selectedCustomer: String = "ALL",
+    val selectedDateFilter: String = "ALL", // "ALL", "TODAY", "YESTERDAY", "THIS_WEEK"
+    val selectedSortOrder: String = "NEWEST", // "NEWEST", "OLDEST", "AMOUNT_HIGH", "AMOUNT_LOW"
     val isLoading: Boolean = false,
     val isGenerating: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null
 ) {
+    val uniqueCustomers: List<String> get() {
+        val fromInvoices = invoices.mapNotNull { it.customer?.businessName?.trim() }
+        val fromPending = pendingOrders.mapNotNull { it.customer?.businessName?.trim() }
+        return (fromInvoices + fromPending).filter { it.isNotEmpty() }.distinct().sorted()
+    }
+
     val filteredInvoices: List<InvoiceSummaryDto> get() {
         val q = searchQuery.trim().lowercase()
-        if (q.isEmpty()) return invoices
-        return invoices.filter { inv ->
-            inv.invoiceNumber.lowercase().contains(q) ||
+        val filtered = invoices.filter { inv ->
+            val matchesSearch = q.isEmpty() ||
+                    inv.invoiceNumber.lowercase().contains(q) ||
                     (inv.customer?.businessName?.lowercase()?.contains(q) == true) ||
                     (inv.customer?.mobile?.contains(q) == true) ||
                     (inv.order?.orderNumber?.lowercase()?.contains(q) == true)
+
+            val matchesCustomer = selectedCustomer == "ALL" ||
+                    inv.customer?.businessName == selectedCustomer ||
+                    inv.customerId == selectedCustomer
+
+            val rawDate = inv.invoiceDate ?: inv.createdAt
+            val matchesDate = when (selectedDateFilter) {
+                "TODAY" -> rawDate.isToday()
+                "YESTERDAY" -> rawDate.isYesterday()
+                "THIS_WEEK" -> rawDate.isThisWeek()
+                else -> true
+            }
+
+            matchesSearch && matchesCustomer && matchesDate
+        }
+
+        return when (selectedSortOrder) {
+            "OLDEST" -> filtered.sortedBy { (it.invoiceDate ?: it.createdAt).parseEpochMs() }
+            "AMOUNT_HIGH" -> filtered.sortedByDescending { it.totalAmount }
+            "AMOUNT_LOW" -> filtered.sortedBy { it.totalAmount }
+            else -> filtered.sortedByDescending { (it.invoiceDate ?: it.createdAt).parseEpochMs() } // "NEWEST"
         }
     }
 
     val filteredPendingOrders: List<OrderDto> get() {
         val q = searchQuery.trim().lowercase()
-        if (q.isEmpty()) return pendingOrders
-        return pendingOrders.filter { order ->
-            order.orderNumber.lowercase().contains(q) ||
+        val filtered = pendingOrders.filter { order ->
+            val matchesSearch = q.isEmpty() ||
+                    order.orderNumber.lowercase().contains(q) ||
                     (order.customer?.businessName?.lowercase()?.contains(q) == true) ||
                     (order.customer?.mobile?.contains(q) == true)
+
+            val matchesCustomer = selectedCustomer == "ALL" ||
+                    order.customer?.businessName == selectedCustomer ||
+                    order.customer?.id == selectedCustomer
+
+            val matchesDate = when (selectedDateFilter) {
+                "TODAY" -> order.createdAt.isToday()
+                "YESTERDAY" -> order.createdAt.isYesterday()
+                "THIS_WEEK" -> order.createdAt.isThisWeek()
+                else -> true
+            }
+
+            matchesSearch && matchesCustomer && matchesDate
+        }
+
+        return when (selectedSortOrder) {
+            "OLDEST" -> filtered.sortedBy { it.createdAt.parseEpochMs() }
+            "AMOUNT_HIGH" -> filtered.sortedByDescending { it.totalAmount }
+            "AMOUNT_LOW" -> filtered.sortedBy { it.totalAmount }
+            else -> filtered.sortedByDescending { it.createdAt.parseEpochMs() } // "NEWEST"
         }
     }
 }
@@ -63,6 +117,18 @@ class InvoicesViewModel @Inject constructor(
 
     fun onSearchQueryChange(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun onSelectCustomer(customer: String) {
+        _uiState.update { it.copy(selectedCustomer = customer) }
+    }
+
+    fun onSelectDateFilter(filter: String) {
+        _uiState.update { it.copy(selectedDateFilter = filter) }
+    }
+
+    fun onSelectSortOrder(sort: String) {
+        _uiState.update { it.copy(selectedSortOrder = sort) }
     }
 
     fun loadData() {

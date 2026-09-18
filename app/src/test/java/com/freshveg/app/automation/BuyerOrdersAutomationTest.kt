@@ -95,4 +95,34 @@ class BuyerOrdersAutomationTest {
         viewModel.closeOrderDetail()
         assertNull(viewModel.uiState.value.selectedOrder)
     }
+
+    @Test
+    fun testBuyerOrdersDateSortingAndSearchFiltering() = runTest {
+        val multiOrders = listOf(
+            OrderDto(id = "ord-1", orderNumber = "ORD-001", totalAmount = 500.0, createdAt = "2026-09-15T03:00:00.000Z"),
+            OrderDto(id = "ord-2", orderNumber = "ORD-002", totalAmount = 1500.0, createdAt = "2026-09-18T03:00:00.000Z"),
+            OrderDto(id = "ord-3", orderNumber = "ORD-003", totalAmount = 800.0, createdAt = "2026-09-17T03:00:00.000Z")
+        )
+        coEvery { apiService.getOrders() } returns Response.success(OrdersEnvelopeResponse(orders = multiOrders))
+
+        val viewModel = BuyerOrdersViewModel(apiService)
+        assertEquals(3, viewModel.uiState.value.filteredOrders.size)
+
+        // Newest First sort check
+        viewModel.onSelectSortOrder("NEWEST")
+        assertEquals("ORD-002", viewModel.uiState.value.filteredOrders[0].orderNumber)
+
+        // Oldest First sort check
+        viewModel.onSelectSortOrder("OLDEST")
+        assertEquals("ORD-001", viewModel.uiState.value.filteredOrders[0].orderNumber)
+
+        // Amount High -> Low
+        viewModel.onSelectSortOrder("AMOUNT_HIGH")
+        assertEquals(1500.0, viewModel.uiState.value.filteredOrders[0].totalAmount, 0.001)
+
+        // Search Filter
+        viewModel.onSearchQueryChange("003")
+        assertEquals(1, viewModel.uiState.value.filteredOrders.size)
+        assertEquals("ORD-003", viewModel.uiState.value.filteredOrders[0].orderNumber)
+    }
 }

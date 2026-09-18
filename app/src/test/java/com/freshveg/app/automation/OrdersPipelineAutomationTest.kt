@@ -178,4 +178,29 @@ class OrdersPipelineAutomationTest {
         assertEquals("item-2", items[0].orderItemId)
         assertEquals(51.5, items[0].deliveredQuantity, 0.001)
     }
+
+    @Test
+    fun testCustomerFilteringAndSortingOnSellerOrders() = runTest {
+        val viewModel = OrdersPipelineViewModel(apiService)
+
+        // Verify unique customers list
+        val customers = viewModel.uiState.value.uniqueCustomers
+        assertTrue(customers.contains("The Dining House"))
+        assertTrue(customers.contains("Tandoori Nights"))
+        assertTrue(customers.contains("Bunny Bite N Sip"))
+
+        // Filter by customer
+        viewModel.onSelectCustomer("Tandoori Nights")
+        assertEquals(1, viewModel.uiState.value.filteredOrders.size)
+        assertEquals("ORD-1002", viewModel.uiState.value.filteredOrders[0].orderNumber)
+
+        // Reset customer filter
+        viewModel.onSelectCustomer("ALL")
+        assertEquals(3, viewModel.uiState.value.filteredOrders.size)
+
+        // Sort by amount
+        viewModel.onSelectSortOrder("AMOUNT_HIGH")
+        assertEquals("ORD-1003", viewModel.uiState.value.filteredOrders[0].orderNumber) // 3100.0
+        assertEquals("ORD-1001", viewModel.uiState.value.filteredOrders[2].orderNumber) // 1500.0
+    }
 }

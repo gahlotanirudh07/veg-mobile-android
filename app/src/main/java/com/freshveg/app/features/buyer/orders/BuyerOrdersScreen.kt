@@ -3,9 +3,11 @@ package com.freshveg.app.features.buyer.orders
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -75,11 +77,137 @@ fun BuyerOrdersScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Search & Filter Header
+            Surface(
+                color = CardSurface,
+                shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    OutlinedTextField(
+                        value = uiState.searchQuery,
+                        onValueChange = viewModel::onSearchQueryChange,
+                        placeholder = { Text("Search by #order or produce item...") },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
+                        trailingIcon = {
+                            if (uiState.searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color.Gray)
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ActionGreen,
+                            unfocusedBorderColor = Color(0xFFE0E0E0),
+                            focusedContainerColor = BackgroundSurface,
+                            unfocusedContainerColor = BackgroundSurface
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Date Filter & Sort Controls Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Date filter chips
+                        val dateFilters = listOf("ALL" to "All Dates", "TODAY" to "Today", "YESTERDAY" to "Yesterday", "THIS_WEEK" to "This Week")
+                        dateFilters.forEach { (key, label) ->
+                            FilterChip(
+                                selected = uiState.selectedDateFilter == key,
+                                onClick = { viewModel.onSelectDateFilter(key) },
+                                label = { Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) },
+                                shape = RoundedCornerShape(20.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = ActionGreen,
+                                    selectedLabelColor = Color.White,
+                                    containerColor = Color(0xFFF1F5F9),
+                                    labelColor = Color(0xFF475569)
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = uiState.selectedDateFilter == key,
+                                    borderColor = if (uiState.selectedDateFilter == key) ActionGreen else Color(0xFFE2E8F0),
+                                    selectedBorderColor = ActionGreen
+                                )
+                            )
+                        }
+
+                        VerticalDivider(
+                            modifier = Modifier.height(20.dp),
+                            color = Color(0xFFCBD5E1)
+                        )
+
+                        // Sort toggle chips
+                        FilterChip(
+                            selected = uiState.selectedSortOrder == "NEWEST",
+                            onClick = { viewModel.onSelectSortOrder("NEWEST") },
+                            leadingIcon = {
+                                Icon(Icons.Default.ArrowDownward, contentDescription = null, modifier = Modifier.size(14.dp))
+                            },
+                            label = { Text("Newest", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF1976D2),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFFF1F5F9),
+                                labelColor = Color(0xFF475569)
+                            )
+                        )
+
+                        FilterChip(
+                            selected = uiState.selectedSortOrder == "OLDEST",
+                            onClick = { viewModel.onSelectSortOrder("OLDEST") },
+                            leadingIcon = {
+                                Icon(Icons.Default.ArrowUpward, contentDescription = null, modifier = Modifier.size(14.dp))
+                            },
+                            label = { Text("Oldest", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF1976D2),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFFF1F5F9),
+                                labelColor = Color(0xFF475569)
+                            )
+                        )
+
+                        FilterChip(
+                            selected = uiState.selectedSortOrder == "AMOUNT_HIGH",
+                            onClick = { viewModel.onSelectSortOrder(if (uiState.selectedSortOrder == "AMOUNT_HIGH") "AMOUNT_LOW" else "AMOUNT_HIGH") },
+                            leadingIcon = {
+                                Icon(Icons.Default.CurrencyRupee, contentDescription = null, modifier = Modifier.size(14.dp))
+                            },
+                            label = {
+                                Text(
+                                    if (uiState.selectedSortOrder == "AMOUNT_LOW") "Amount: Low → High" else "Amount: High → Low",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFE65100),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFFF1F5F9),
+                                labelColor = Color(0xFF475569)
+                            )
+                        )
+                    }
+                }
+            }
+
             if (uiState.isLoading && uiState.orders.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = ForestGreenPrimary)
                 }
-            } else if (uiState.orders.isEmpty()) {
+            } else if (uiState.filteredOrders.isEmpty()) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -89,9 +217,17 @@ fun BuyerOrdersScreen(
                 ) {
                     Icon(Icons.Default.LocalShipping, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("No orders placed yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (uiState.searchQuery.isNotEmpty() || uiState.selectedDateFilter != "ALL") "No orders match your filter" else "No orders placed yet",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Explore today's fresh produce catalog to place your early morning order.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text(
+                        text = if (uiState.searchQuery.isNotEmpty() || uiState.selectedDateFilter != "ALL") "Try selecting 'All Dates' or clearing search" else "Explore today's fresh produce catalog to place your early morning order.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
                 }
             } else {
                 LazyColumn(
@@ -99,7 +235,7 @@ fun BuyerOrdersScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(uiState.orders, key = { it.id }) { order ->
+                    items(uiState.filteredOrders, key = { it.id }) { order ->
                         BuyerOrderCard(
                             order = order,
                             onClick = { viewModel.openOrderDetail(order) },

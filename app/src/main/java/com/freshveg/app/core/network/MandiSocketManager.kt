@@ -1,4 +1,4 @@
-﻿package com.freshveg.app.core.network
+package com.freshveg.app.core.network
 
 import android.util.Log
 import com.freshveg.app.core.datastore.SessionManager
@@ -10,6 +10,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.firstOrNull
 import okhttp3.*
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -114,51 +115,63 @@ class MandiSocketManager @Inject constructor(
     }
 
     private fun handlePushNotification(eventType: String, data: JsonObject?) {
-        try {
-            when (eventType) {
-                "ORDER_CREATED" -> {
-                    val buyerName = data?.get("buyerName")?.asString ?: "A buyer"
-                    val orderNum = data?.get("orderNumber")?.asString ?: ""
-                    notificationHelper.showNotification(
-                        title = "🛒 New Order Received!",
-                        message = "New order #$orderNum received from $buyerName",
-                        channelId = NotificationHelper.CHANNEL_ORDERS
-                    )
+        scope.launch {
+            try {
+                val isSeller = sessionManager.isSeller.firstOrNull() ?: false
+                when (eventType) {
+                    "ORDER_CREATED" -> {
+                        // Only show "New Order Received!" alert to sellers
+                        if (isSeller) {
+                            val buyerName = data?.get("buyerName")?.asString ?: "A buyer"
+                            val orderNum = data?.get("orderNumber")?.asString ?: ""
+                            notificationHelper.showNotification(
+                                title = "🛒 New Order Received!",
+                                message = "New order #$orderNum received from $buyerName",
+                                channelId = NotificationHelper.CHANNEL_ORDERS
+                            )
+                        }
+                    }
+                    "ORDER_UPDATED", "ORDER_FULFILLED" -> {
+                        val status = data?.get("status")?.asString ?: "Updated"
+                        val orderNum = data?.get("orderNumber")?.asString ?: ""
+                        notificationHelper.showNotification(
+                            title = "📦 Order $status",
+                            message = "Order #$orderNum status updated to $status",
+                            channelId = NotificationHelper.CHANNEL_ORDERS
+                        )
+                    }
+                    "RATES_UPDATED" -> {
+                        notificationHelper.showNotification(
+                            title = "📈 Daily Rates Updated",
+                            message = "Produce rate card has been updated with fresh market prices.",
+                            channelId = NotificationHelper.CHANNEL_RATES
+                        )
+                    }
+                    "PAYMENT_RECORDED" -> {
+                        val amount = data?.get("amount")?.asString ?: ""
+                        val title = if (isSeller) "💰 Payment Received" else "💰 Payment Recorded"
+                        val msg = if (amount.isNotEmpty()) {
+                            if (isSeller) "Payment of ₹$amount received & recorded" else "Payment of ₹$amount recorded in Khata"
+                        } else {
+                            if (isSeller) "New payment received" else "New payment recorded in Khata"
+                        }
+                        notificationHelper.showNotification(
+                            title = title,
+                            message = msg,
+                            channelId = NotificationHelper.CHANNEL_PAYMENTS
+                        )
+                    }
+                    "DISCOUNT_CHANGED" -> {
+                        notificationHelper.showNotification(
+                            title = "🏷️ Special Discount Updated",
+                            message = "Your customer discount terms have been updated.",
+                            channelId = NotificationHelper.CHANNEL_RATES
+                        )
+                    }
                 }
-                "ORDER_UPDATED", "ORDER_FULFILLED" -> {
-                    val status = data?.get("status")?.asString ?: "Updated"
-                    val orderNum = data?.get("orderNumber")?.asString ?: ""
-                    notificationHelper.showNotification(
-                        title = "📦 Order $status",
-                        message = "Order #$orderNum status updated to $status",
-                        channelId = NotificationHelper.CHANNEL_ORDERS
-                    )
-                }
-                "RATES_UPDATED" -> {
-                    notificationHelper.showNotification(
-                        title = "📈 Daily Rates Updated",
-                        message = "Produce rate card has been updated with fresh market prices.",
-                        channelId = NotificationHelper.CHANNEL_RATES
-                    )
-                }
-                "PAYMENT_RECORDED" -> {
-                    val amount = data?.get("amount")?.asString ?: ""
-                    notificationHelper.showNotification(
-                        title = "💰 Payment Received",
-                        message = if (amount.isNotEmpty()) "Payment of ₹$amount recorded in Khata" else "New payment recorded in Khata",
-                        channelId = NotificationHelper.CHANNEL_PAYMENTS
-                    )
-                }
-                "DISCOUNT_CHANGED" -> {
-                    notificationHelper.showNotification(
-                        title = "🏷️ Special Discount Updated",
-                        message = "Your customer discount terms have been updated.",
-                        channelId = NotificationHelper.CHANNEL_RATES
-                    )
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to build push notification for event $eventType", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to build push notification for event $eventType", e)
         }
     }
 

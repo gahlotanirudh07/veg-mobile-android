@@ -152,4 +152,42 @@ class InvoicesAutomationTest {
         assertEquals(1, detail?.items?.size) // Full items hydrated!
         assertTrue(viewModel.uiState.value.successMessage?.contains("INV-2026-002") == true)
     }
+
+    @Test
+    fun testCustomerFilteringAndSortingOnSellerInvoices() = runTest {
+        val extraInvoices = listOf(
+            mockInvoices[0],
+            InvoiceSummaryDto(
+                id = "inv-2",
+                invoiceNumber = "INV-2026-002",
+                orderId = "ord-2",
+                customerId = "75",
+                customer = CustomerSummaryDto(id = "75", businessName = "Tandoori Nights", mobile = "9136489683"),
+                totalAmount = 3500.0,
+                status = "GENERATED",
+                invoiceDate = "2026-09-18T05:30:00.000Z",
+                createdAt = "2026-09-18T05:30:00.000Z"
+            )
+        )
+        coEvery { apiService.getInvoices() } returns Response.success(InvoicesEnvelopeResponse(invoices = extraInvoices))
+
+        val viewModel = InvoicesViewModel(apiService)
+        assertEquals(2, viewModel.uiState.value.filteredInvoices.size)
+
+        // Verify unique customers
+        val customers = viewModel.uiState.value.uniqueCustomers
+        assertTrue(customers.contains("The Dining House"))
+        assertTrue(customers.contains("Tandoori Nights"))
+
+        // Filter by Customer
+        viewModel.onSelectCustomer("Tandoori Nights")
+        assertEquals(1, viewModel.uiState.value.filteredInvoices.size)
+        assertEquals("INV-2026-002", viewModel.uiState.value.filteredInvoices[0].invoiceNumber)
+
+        // Reset customer filter and sort by amount
+        viewModel.onSelectCustomer("ALL")
+        viewModel.onSelectSortOrder("AMOUNT_HIGH")
+        assertEquals("INV-2026-002", viewModel.uiState.value.filteredInvoices[0].invoiceNumber) // 3500.0
+        assertEquals("INV-2026-001", viewModel.uiState.value.filteredInvoices[1].invoiceNumber) // 1500.0
+    }
 }

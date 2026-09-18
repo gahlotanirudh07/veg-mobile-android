@@ -96,15 +96,6 @@ fun BuyerHomeScreen(
                         }
                     }
                 },
-                actions = {
-                    IconButton(onClick = onLogout) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.Logout,
-                            contentDescription = "Logout",
-                            tint = InkSecondary
-                        )
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = NeutralSurface
                 )

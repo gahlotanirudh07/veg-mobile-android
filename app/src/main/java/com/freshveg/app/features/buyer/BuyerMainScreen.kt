@@ -16,6 +16,7 @@ import com.freshveg.app.core.datastore.SessionManager
 import com.freshveg.app.core.network.VegApiService
 import com.freshveg.app.core.ui.animation.rememberTactileHaptic
 import com.freshveg.app.core.ui.theme.*
+import com.freshveg.app.features.buyer.account.BuyerAccountScreen
 import com.freshveg.app.features.buyer.catalogue.BuyerCatalogueScreen
 import com.freshveg.app.features.buyer.home.BuyerHomeScreen
 import com.freshveg.app.features.buyer.invoices.BuyerInvoicesScreen
@@ -52,7 +53,7 @@ fun BuyerMainScreen(
                     label = {
                         Text(
                             text = "Home",
-                            fontSize = 11.5.sp,
+                            fontSize = 11.sp,
                             fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium
                         )
                     },
@@ -81,7 +82,7 @@ fun BuyerMainScreen(
                     label = {
                         Text(
                             text = "Catalogue",
-                            fontSize = 11.5.sp,
+                            fontSize = 11.sp,
                             fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium
                         )
                     },
@@ -110,7 +111,7 @@ fun BuyerMainScreen(
                     label = {
                         Text(
                             text = "Orders",
-                            fontSize = 11.5.sp,
+                            fontSize = 11.sp,
                             fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Medium
                         )
                     },
@@ -139,8 +140,37 @@ fun BuyerMainScreen(
                     label = {
                         Text(
                             text = "Khata",
-                            fontSize = 11.5.sp,
+                            fontSize = 11.sp,
                             fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Medium
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = ActionGreen,
+                        selectedTextColor = ActionGreen,
+                        unselectedIconColor = InkSecondary,
+                        unselectedTextColor = InkSecondary,
+                        indicatorColor = ActionGreen.copy(alpha = 0.12f)
+                    )
+                )
+
+                // Tab 4: Account (Restaurant Profile, Connected Seller & Settings)
+                NavigationBarItem(
+                    selected = selectedTab == 4,
+                    onClick = {
+                        triggerHaptic()
+                        selectedTab = 4
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = if (selectedTab == 4) Icons.Filled.Person else Icons.Outlined.Person,
+                            contentDescription = "Account"
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = "Account",
+                            fontSize = 11.sp,
+                            fontWeight = if (selectedTab == 4) FontWeight.Bold else FontWeight.Medium
                         )
                     },
                     colors = NavigationBarItemDefaults.colors(
@@ -199,6 +229,19 @@ fun BuyerMainScreen(
                         triggerHaptic()
                         selectedTab = 0
                     }
+                )
+                4 -> BuyerAccountScreen(
+                    sessionManager = sessionManager,
+                    apiService = apiService,
+                    onNavigateToOrders = {
+                        triggerHaptic()
+                        selectedTab = 2
+                    },
+                    onNavigateToInvoices = {
+                        triggerHaptic()
+                        selectedTab = 3
+                    },
+                    onLogout = onLogout
                 )
             }
         }

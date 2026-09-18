@@ -7,6 +7,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshveg.app.core.network.*
 import com.freshveg.app.core.ui.ProduceVisualUtils
+import com.freshveg.app.core.utils.isThisWeek
+import com.freshveg.app.core.utils.isToday
+import com.freshveg.app.core.utils.isYesterday
+import com.freshveg.app.core.utils.parseEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +22,9 @@ data class OrdersPipelineUiState(
     val orders: List<OrderDto> = emptyList(),
     val selectedStatusTab: String = "ALL", // "ALL", "PENDING", "CONFIRMED", "FULFILLED"
     val searchQuery: String = "",
+    val selectedCustomer: String = "ALL",
+    val selectedDateFilter: String = "ALL", // "ALL", "TODAY", "YESTERDAY", "THIS_WEEK"
+    val selectedSortOrder: String = "NEWEST", // "NEWEST", "OLDEST", "AMOUNT_HIGH", "AMOUNT_LOW"
     val cutoffTime: String? = null,
     val selectedOrderForFulfill: OrderDto? = null,
     val isEditCutoffOpen: Boolean = false,
@@ -31,20 +38,46 @@ data class OrdersPipelineUiState(
     val confirmedCount: Int get() = orders.count { it.status == "CONFIRMED" }
     val fulfilledCount: Int get() = orders.count { it.status == "FULFILLED" }
 
-    val filteredOrders: List<OrderDto> get() = orders.filter { order ->
-        val matchesStatus = when (selectedStatusTab) {
-            "ALL" -> true
-            else -> order.status.equals(selectedStatusTab, ignoreCase = true)
+    val uniqueCustomers: List<String> get() =
+        orders.mapNotNull { it.customer?.businessName?.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .sorted()
+
+    val filteredOrders: List<OrderDto> get() {
+        val q = searchQuery.trim().lowercase()
+        val filtered = orders.filter { order ->
+            val matchesStatus = when (selectedStatusTab) {
+                "ALL" -> true
+                else -> order.status.equals(selectedStatusTab, ignoreCase = true)
+            }
+
+            val matchesSearch = q.isEmpty() ||
+                    order.orderNumber.lowercase().contains(q) ||
+                    (order.customer?.businessName?.lowercase()?.contains(q) == true) ||
+                    (order.customer?.mobile?.contains(q) == true) ||
+                    order.items.any { it.displayName.lowercase().contains(q) }
+
+            val matchesCustomer = selectedCustomer == "ALL" ||
+                    order.customer?.businessName == selectedCustomer ||
+                    order.customer?.id == selectedCustomer
+
+            val matchesDate = when (selectedDateFilter) {
+                "TODAY" -> order.createdAt.isToday()
+                "YESTERDAY" -> order.createdAt.isYesterday()
+                "THIS_WEEK" -> order.createdAt.isThisWeek()
+                else -> true
+            }
+
+            matchesStatus && matchesSearch && matchesCustomer && matchesDate
         }
 
-        val q = searchQuery.trim().lowercase()
-        val matchesSearch = q.isEmpty() ||
-                order.orderNumber.lowercase().contains(q) ||
-                (order.customer?.businessName?.lowercase()?.contains(q) == true) ||
-                (order.customer?.mobile?.contains(q) == true) ||
-                order.items.any { it.displayName.lowercase().contains(q) }
-
-        matchesStatus && matchesSearch
+        return when (selectedSortOrder) {
+            "OLDEST" -> filtered.sortedBy { it.createdAt.parseEpochMs() }
+            "AMOUNT_HIGH" -> filtered.sortedByDescending { it.totalAmount }
+            "AMOUNT_LOW" -> filtered.sortedBy { it.totalAmount }
+            else -> filtered.sortedByDescending { it.createdAt.parseEpochMs() } // "NEWEST"
+        }
     }
 }
 
@@ -56,6 +89,18 @@ class OrdersPipelineViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(OrdersPipelineUiState())
     val uiState = _uiState.asStateFlow()
+
+    fun onSelectCustomer(customer: String) {
+        _uiState.update { it.copy(selectedCustomer = customer) }
+    }
+
+    fun onSelectDateFilter(filter: String) {
+        _uiState.update { it.copy(selectedDateFilter = filter) }
+    }
+
+    fun onSelectSortOrder(sort: String) {
+        _uiState.update { it.copy(selectedSortOrder = sort) }
+    }
 
     init {
         loadOrders()

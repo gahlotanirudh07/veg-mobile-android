@@ -5,6 +5,10 @@ import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshveg.app.core.network.*
+import com.freshveg.app.core.utils.isThisWeek
+import com.freshveg.app.core.utils.isToday
+import com.freshveg.app.core.utils.isYesterday
+import com.freshveg.app.core.utils.parseEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,9 +21,37 @@ data class BuyerOrdersUiState(
     val selectedOrder: OrderDto? = null,
     val connectedSeller: ConnectedSellerDto? = null,
     val cutoffTime: String = "03:00 AM",
+    val searchQuery: String = "",
+    val selectedDateFilter: String = "ALL", // "ALL", "TODAY", "YESTERDAY", "THIS_WEEK"
+    val selectedSortOrder: String = "NEWEST", // "NEWEST", "OLDEST", "AMOUNT_HIGH", "AMOUNT_LOW"
     val isLoading: Boolean = false,
     val errorMessage: String? = null
-)
+) {
+    val filteredOrders: List<OrderDto> get() {
+        val q = searchQuery.trim().lowercase()
+        val filtered = orders.filter { order ->
+            val matchesSearch = q.isEmpty() ||
+                    order.orderNumber.lowercase().contains(q) ||
+                    order.items.any { it.displayName.lowercase().contains(q) || (it.productNameSnapshot?.lowercase()?.contains(q) == true) }
+
+            val matchesDate = when (selectedDateFilter) {
+                "TODAY" -> order.createdAt.isToday()
+                "YESTERDAY" -> order.createdAt.isYesterday()
+                "THIS_WEEK" -> order.createdAt.isThisWeek()
+                else -> true
+            }
+
+            matchesSearch && matchesDate
+        }
+
+        return when (selectedSortOrder) {
+            "OLDEST" -> filtered.sortedBy { it.createdAt.parseEpochMs() }
+            "AMOUNT_HIGH" -> filtered.sortedByDescending { it.totalAmount }
+            "AMOUNT_LOW" -> filtered.sortedBy { it.totalAmount }
+            else -> filtered.sortedByDescending { it.createdAt.parseEpochMs() } // "NEWEST"
+        }
+    }
+}
 
 @HiltViewModel
 class BuyerOrdersViewModel @Inject constructor(
@@ -29,6 +61,18 @@ class BuyerOrdersViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(BuyerOrdersUiState())
     val uiState = _uiState.asStateFlow()
+
+    fun onSearchQueryChange(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun onSelectDateFilter(filter: String) {
+        _uiState.update { it.copy(selectedDateFilter = filter) }
+    }
+
+    fun onSelectSortOrder(sort: String) {
+        _uiState.update { it.copy(selectedSortOrder = sort) }
+    }
 
     init {
         loadOrders()
