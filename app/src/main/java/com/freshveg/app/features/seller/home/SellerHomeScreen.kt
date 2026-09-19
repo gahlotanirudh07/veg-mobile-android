@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.freshveg.app.core.ui.animation.bounceClick
+import com.freshveg.app.R
+import androidx.compose.ui.res.stringResource
 import com.freshveg.app.core.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)

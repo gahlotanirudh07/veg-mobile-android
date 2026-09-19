@@ -29,6 +29,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.freshveg.app.R
+import androidx.compose.ui.res.stringResource
 import com.freshveg.app.core.network.ConnectedSellerDto
 import com.freshveg.app.core.ui.ProduceThumbnailBadge
 import com.freshveg.app.core.ui.animation.bounceClick
@@ -83,13 +85,13 @@ fun BuyerHomeScreen(
                         )
                         Column {
                             Text(
-                                text = "FreshVeg / MandiExpress",
+                                text = stringResource(R.string.buyer_home_header_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MainInk
                             )
                             Text(
-                                text = "Premium Market Operations",
+                                text = stringResource(R.string.buyer_home_header_subtitle),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = InkSecondary
                             )
@@ -153,7 +155,7 @@ fun BuyerHomeScreen(
                                     color = MainInk
                                 )
                                 Text(
-                                    text = "Seller Code: ${connectedSeller?.sellerCode ?: "SEL-EFBC95C3"}",
+                                    text = stringResource(R.string.buyer_supplier_code, connectedSeller?.sellerCode ?: "SEL-EFBC95C3"),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = InkTertiary
                                 )
@@ -201,7 +203,7 @@ fun BuyerHomeScreen(
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = "Order cutoff: $cutoffTime • Next dispatch 05:00 AM",
+                            text = stringResource(R.string.buyer_order_cutoff, cutoffTime),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = AmberWarning
@@ -243,7 +245,7 @@ fun BuyerHomeScreen(
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = "RATES VERIFIED",
+                                    text = stringResource(R.string.buyer_rates_verified),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MainInk
@@ -260,13 +262,13 @@ fun BuyerHomeScreen(
 
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = "Place Today's Order",
+                                text = stringResource(R.string.buyer_hero_order_title),
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Text(
-                                text = "Fresh early morning mandi arrival directly to your kitchen",
+                                text = stringResource(R.string.buyer_hero_order_subtitle),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = Color.White.copy(alpha = 0.85f)
                             )
@@ -294,7 +296,7 @@ fun BuyerHomeScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Open Fresh Catalogue",
+                                text = stringResource(R.string.buyer_browse_full_catalogue),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
                             )
@@ -311,13 +313,13 @@ fun BuyerHomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Buy Again (Frequently Ordered)",
+                        text = stringResource(R.string.buyer_frequent_reorder),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MainInk
                     )
                     Text(
-                        text = "View All",
+                        text = stringResource(R.string.common_view_all),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = ActionGreen,
@@ -444,7 +446,7 @@ fun BuyerHomeScreen(
                             }
                             Column {
                                 Text(
-                                    text = "Today's Dispatch Status",
+                                    text = stringResource(R.string.buyer_active_orders),
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MainInk

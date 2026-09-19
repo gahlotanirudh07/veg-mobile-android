@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- App &amp; Common Core -->
-    <string name="app_name">मंडी एक्सप्रेस</string>
-    <string name="common_save">सुरक्षित करें</string>
+    <!-- App & Core Common -->
+    <string name="app_name">मंडीएक्सप्रेस</string>
+    <string name="common_save">सेव करें</string>
     <string name="common_cancel">रद्द करें</string>
     <string name="common_retry">पुनः प्रयास करें</string>
     <string name="common_delete">हटाएं</string>
-    <string name="common_edit">बदलाव करें</string>
+    <string name="common_edit">संशोधित करें</string>
     <string name="common_back">पीछे</string>
     <string name="common_close">बंद करें</string>
     <string name="common_search">खोजें...</string>
     <string name="common_filter">फ़िल्टर</string>
     <string name="common_all">सभी</string>
-    <string name="common_refresh">ताज़ा करें</string>
-    <string name="common_done">पूर्ण</string>
+    <string name="common_refresh">रिफ्रेश करें</string>
+    <string name="common_done">संपन्न</string>
     <string name="common_submit">जमा करें</string>
     <string name="common_update">अपडेट करें</string>
     <string name="common_confirm">पुष्टि करें</string>
@@ -22,8 +22,8 @@
     <string name="common_error">कुछ त्रुटि हुई</string>
     <string name="common_total">कुल योग</string>
     <string name="common_qty">मात्रा</string>
-    <string name="common_price">मूल्य</string>
-    <string name="common_rate">भाव/दर</string>
+    <string name="common_price">कीमत</string>
+    <string name="common_rate">भाव (दर)</string>
     <string name="common_rupee">₹</string>
     <string name="common_per_kg">/ किग्रा</string>
     <string name="common_kg">किग्रा</string>
@@ -32,170 +32,186 @@
     <string name="common_bunch">गड्डी</string>
     <string name="common_piece">नग</string>
     <string name="common_items">सब्जियां</string>
-    <string name="common_no_data">कोई डेटा उपलब्ध नहीं</string>
+    <string name="common_no_data">कोई डेटा उपलब्ध नहीं है</string>
     <string name="common_phone">मोबाइल नंबर</string>
     <string name="common_call">कॉल करें</string>
     <string name="common_whatsapp">व्हाट्सएप</string>
     <string name="common_date">दिनांक</string>
     <string name="common_status">स्थिति</string>
     <string name="common_share">शेयर करें</string>
-    <string name="common_download">डाउनलोड करें</string>
+    <string name="common_download">डाउनलोड</string>
     <string name="common_view_details">विवरण देखें</string>
-    <string name="common_server_reconnecting">मंडी सर्वर से जुड़ रहे हैं (डेटाबेस शुरू हो रहा है)...</string>
-    <string name="common_pull_to_refresh">ताज़ा करने के लिए नीचे खींचें</string>
+    <string name="common_view_all">सभी देखें</string>
+    <string name="common_server_reconnecting">मंडी सर्वर से कनेक्ट हो रहा है (डेटाबेस शुरू हो रहा है)...</string>
+    <string name="common_pull_to_refresh">ताजा करने के लिए नीचे खींचें</string>
 
     <!-- Language Selection -->
     <string name="lang_title">भाषा / Language</string>
-    <string name="lang_english">English (अंग्रेज़ी)</string>
-    <string name="lang_hindi">हिन्दी</string>
+    <string name="lang_english">English</string>
+    <string name="lang_hindi">हिन्दी (Hindi)</string>
     <string name="lang_select_prompt">अपनी पसंदीदा भाषा चुनें</string>
 
-    <!-- Navigation &amp; Roles -->
+    <!-- Navigation & Bottom Tabs -->
     <string name="nav_home">होम</string>
-    <string name="nav_catalogue">मंडी भाव/कैटलॉग</string>
+    <string name="nav_catalogue">कैटलॉग</string>
     <string name="nav_orders">ऑर्डर</string>
-    <string name="nav_invoices">बिल/चालान</string>
-    <string name="nav_khata">खाता-बही</string>
-    <string name="nav_rates">दैनिक भाव</string>
-    <string name="nav_products">सब्जियां</string>
-    <string name="nav_tally">मंडी आवक/टैली</string>
-    <string name="nav_customers">व्यापारी/ग्राहक</string>
-    <string name="nav_analytics">मुनाफ़ा रिपोर्ट</string>
-    <string name="nav_account">प्रोफ़ाइल</string>
+    <string name="nav_invoices">बिल व खाता</string>
+    <string name="nav_khata">खाता बही</string>
+    <string name="nav_rates">भाव कार्ड</string>
+    <string name="nav_products">सब्जी मास्टर</string>
+    <string name="nav_tally">टैली</string>
+    <string name="nav_customers">ग्राहक</string>
+    <string name="nav_analytics">रिपोर्ट्स</string>
+    <string name="nav_account">प्रोफाइल</string>
 
     <!-- Auth Screens -->
-    <string name="auth_login_title">मंडी एक्सप्रेस लॉगिन</string>
-    <string name="auth_login_subtitle">सीधे थोक मंडी से ताज़ा सब्जियां</string>
+    <string name="auth_login_title">मंडीएक्सप्रेस लॉगिन</string>
+    <string name="auth_login_subtitle">सीधी थोक मंडी आपूर्ति</string>
     <string name="auth_enter_phone">10 अंकों का मोबाइल नंबर दर्ज करें</string>
     <string name="auth_enter_password">पासवर्ड</string>
-    <string name="auth_login_button">मंडी में प्रवेश करें</string>
-    <string name="auth_register_buyer">नया खरीदार खाता (होटल / खुदरा विक्रेता)</string>
-    <string name="auth_register_seller">नया थोक आढ़ती / सप्लायर खाता</string>
-    <string name="auth_buyer_title">खरीदार पंजीकरण</string>
-    <string name="auth_seller_title">थोक व्यापारी पंजीकरण</string>
-    <string name="auth_shop_name">दुकान / होटल / व्यापार का नाम</string>
+    <string name="auth_login_button">मंडी में लॉगिन करें</string>
+    <string name="auth_register_buyer">खरीदार पंजीकरण (होटल / रेस्टोरेंट / विक्रेता)</string>
+    <string name="auth_register_seller">थोक व्यापारी पंजीकरण (मंडी आढ़तिया)</string>
+    <string name="auth_buyer_title">खरीदार नया खाता</string>
+    <string name="auth_seller_title">थोक विक्रेता नया खाता</string>
+    <string name="auth_shop_name">दुकान / रेस्टोरेंट / व्यापार का नाम</string>
     <string name="auth_contact_name">मालिक / संपर्क व्यक्ति का नाम</string>
-    <string name="auth_mandi_name">मंडी का नाम</string>
+    <string name="auth_mandi_name">मंडी प्रांगण / बाजार का नाम</string>
     <string name="auth_address">डिलीवरी का पूरा पता</string>
-    <string name="auth_seller_code">आढ़ती / सप्लायर का कोड</string>
-    <string name="auth_seller_code_helper">अपने मंडी सप्लायर का 6 अंकों का कोड दर्ज करें</string>
-    <string name="auth_register_submit">पंजीकरण पूर्ण करें</string>
-    <string name="auth_already_account">पहले से पंजीकृत हैं? लॉगिन करें</string>
-    <string name="auth_logout">लॉग आउट</string>
+    <string name="auth_seller_code">सप्लायर / विक्रेता रेफरल कोड</string>
+    <string name="auth_seller_code_helper">अपने मंडी सप्लायर द्वारा दिया गया 6-अंकीय कोड दर्ज करें</string>
+    <string name="auth_register_submit">पंजीकरण पूरा करें</string>
+    <string name="auth_already_account">पहले से खाता है? लॉगिन करें</string>
+    <string name="auth_logout">लॉग आउट करें</string>
     <string name="auth_logout_confirm">क्या आप वाकई लॉग आउट करना चाहते हैं?</string>
 
-    <!-- Buyer Catalogue &amp; Produce Cards -->
-    <string name="buyer_search_produce">100+ ताज़ी सब्जियां, पत्ते, कंद खोजें...</string>
+    <!-- Buyer Home & Hub -->
+    <string name="buyer_home_header_title">मंडीएक्सप्रेस</string>
+    <string name="buyer_home_header_subtitle">प्रीमियम मंडी परिचालन</string>
+    <string name="buyer_home_greeting">नमस्ते, %1$s</string>
+    <string name="buyer_supplier_info">थोक सप्लायर: %1$s</string>
+    <string name="buyer_supplier_code">सप्लायर कोड: %1$s</string>
+    <string name="buyer_order_cutoff">⏰ ऑर्डर कटऑफ: %1$s • अगली डिलीवरी सुबह 05:00 बजे</string>
+    <string name="buyer_rates_verified">भाव सत्यापित</string>
+    <string name="buyer_hero_order_title">आज सुबह का ऑर्डर भेजें</string>
+    <string name="buyer_hero_order_subtitle">सीधे थोक भाव • कटऑफ समय तक लॉक</string>
+    <string name="buyer_outstanding_dues">खाता बकाया राशि</string>
+    <string name="buyer_active_orders">सक्रिय सुबह के ऑर्डर</string>
+    <string name="buyer_frequent_reorder">रोजमर्रा की सब्जियां (1-टैप ऑर्डर)</string>
+    <string name="buyer_frequent_reorder_subtitle">अपनी नियमित रेस्टोरेंट आपूर्ति सीधे जोड़ें</string>
+    <string name="buyer_browse_full_catalogue">पूरा मंडी कैटलॉग देखें →</string>
+    <string name="buyer_call_seller">सप्लायर को कॉल करें</string>
+
+    <!-- Buyer Catalogue & Cards -->
+    <string name="buyer_catalogue_title">मंडी कैटलॉग (लाइव भाव)</string>
+    <string name="buyer_search_produce">100+ ताजी सब्जियां, मसाले, कंदमूल खोजें...</string>
     <string name="buyer_wholesale_price">थोक भाव</string>
-    <string name="buyer_custom_rate">विशेष भाव</string>
-    <string name="buyer_market_rate">मंडी भाव</string>
-    <string name="buyer_in_stock">उपलब्ध है</string>
+    <string name="buyer_custom_rate">विशेष दर</string>
+    <string name="buyer_market_rate">बाजार भाव</string>
+    <string name="buyer_in_stock">उपलब्ध</string>
     <string name="buyer_out_of_stock">स्टॉक समाप्त</string>
     <string name="buyer_add_to_cart">+ जोड़ें</string>
-    <string name="buyer_added_to_cart">जोड़ा गया</string>
+    <string name="buyer_added_to_cart">जुड़ा हुआ</string>
     <string name="buyer_qty_kg">मात्रा (किग्रा)</string>
     <string name="buyer_enter_qty">मात्रा लिखें</string>
+    <string name="buyer_direct_qty_label">सीधे मात्रा टाइप करें:</string>
     <string name="buyer_chip_half_kg">+0.5 किग्रा</string>
     <string name="buyer_chip_one_kg">+1 किग्रा</string>
     <string name="buyer_chip_five_kg">+5 किग्रा</string>
     <string name="buyer_chip_ten_kg">+10 किग्रा</string>
     <string name="buyer_chip_crate">+1 क्रेट</string>
-    <string name="buyer_cart_bar_title">ऑर्डर बास्केट देखें</string>
-    <string name="buyer_cart_items_count">%1$d आइटम</string>
+    <string name="buyer_cart_bar_title">टोकरी देखें</string>
+    <string name="buyer_cart_items_count">%1$d सब्जियां</string>
     <string name="buyer_cart_total">अनुमानित: ₹%1$s</string>
     <string name="buyer_cart_title">सुबह का ऑर्डर जांचें</string>
-    <string name="buyer_cart_empty">आपकी मंडी बास्केट खाली है</string>
-    <string name="buyer_cart_empty_sub">ऑर्डर करने के लिए कैटलॉग से ताज़ी सब्जियां जोड़ें</string>
-    <string name="buyer_cart_clear">बास्केट खाली करें</string>
-    <string name="buyer_cart_note">सप्लायर के लिए निर्देश (जैसे: साफ पालक, छोटे प्याज)</string>
-    <string name="buyer_place_order">सुबह का ऑर्डर कन्फर्म करें</string>
-    <string name="buyer_order_placed_success">ऑर्डर सफलतापूर्वक भेज दिया गया! सप्लायर को सूचित कर दिया गया है।</string>
+    <string name="buyer_cart_empty">आपकी मंडी टोकरी खाली है</string>
+    <string name="buyer_cart_empty_sub">ऑर्डर करने हेतु कैटलॉग से ताजी सब्जियां जोड़ें</string>
+    <string name="buyer_cart_clear">टोकरी खाली करें</string>
+    <string name="buyer_cart_note">विशेष डिस्पैच निर्देश (उदा. साफ पालक, छोटा प्याज)</string>
+    <string name="buyer_place_order">ऑर्डर पक्का करें व भेजें</string>
+    <string name="buyer_order_placed_success">ऑर्डर सफलतापूर्वक भेज दिया गया! सप्लायर को सूचित किया गया।</string>
     <string name="buyer_category_all">सभी सब्जियां</string>
-    <string name="buyer_category_staples">रोजमर्रा की सब्जियां</string>
-    <string name="buyer_category_leafy">पत्तेदार सब्जियां</string>
-    <string name="buyer_category_roots">कंद व जड़ें</string>
-    <string name="buyer_category_gourds">लौकी, कद्दू व तोरी</string>
-    <string name="buyer_category_peppers">मिर्च व शिमला मिर्च</string>
-    <string name="buyer_category_herbs">धनिया, पुदीना व मसाले</string>
-    <string name="buyer_category_exotic">विदेशी सब्जियां</string>
+    <string name="buyer_category_staples">रोजमर्रा</string>
+    <string name="buyer_category_leafy">पत्तेदार</string>
+    <string name="buyer_category_roots">कंदमूल</string>
+    <string name="buyer_category_gourds">लौकी व कद्दू</string>
+    <string name="buyer_category_peppers">मिर्च व शिमला</string>
+    <string name="buyer_category_herbs">धनिया व मसाले</string>
+    <string name="buyer_category_exotic">एग्जॉटिक सब्जियां</string>
 
-    <!-- Buyer Home &amp; Hub -->
-    <string name="buyer_home_greeting">नमस्ते, %1$s</string>
-    <string name="buyer_supplier_info">मंडी सप्लायर: %1$s</string>
-    <string name="buyer_order_cutoff">⏰ ऑर्डर कट-ऑफ समय: %1$s</string>
-    <string name="buyer_outstanding_dues">खाता बकाया राशि</string>
-    <string name="buyer_active_orders">सक्रिय सुबह के ऑर्डर</string>
-    <string name="buyer_frequent_reorder">नियमित सब्जियां (1-टैप पुनः ऑर्डर)</string>
-    <string name="buyer_browse_full_catalogue">पूरा मंडी कैटलॉग देखें →</string>
-
-    <!-- Buyer Orders &amp; Deliveries -->
-    <string name="orders_title">मेरे ऑर्डर और डिलीवरी</string>
+    <!-- Orders & Deliveries -->
+    <string name="orders_title">मेरे ऑर्डर व डिलीवरी</string>
     <string name="orders_tab_all">सभी</string>
-    <string name="orders_tab_pending">प्रतीक्षारत</string>
+    <string name="orders_tab_pending">लंबित</string>
     <string name="orders_tab_confirmed">स्वीकृत</string>
-    <string name="orders_tab_fulfilled">वितरित (सफल)</string>
+    <string name="orders_tab_fulfilled">डिलीवर</string>
     <string name="orders_tab_cancelled">रद्द</string>
     <string name="orders_empty">कोई ऑर्डर नहीं मिला</string>
     <string name="orders_item_count">%1$d सब्जियां</string>
-    <string name="orders_ordered_qty">ऑर्डर मात्रा: %1$s</string>
-    <string name="orders_weighed_qty">तौल मात्रा: %1$s</string>
+    <string name="orders_ordered_qty">मांगा गया: %1$s</string>
+    <string name="orders_weighed_qty">डिलीवर हुआ: %1$s</string>
     <string name="orders_total_bill">कुल बिल: ₹%1$s</string>
-    <string name="orders_call_supplier">सप्लायर को कॉल करें</string>
-    <string name="orders_chat_whatsapp">व्हाट्सएप पर चैट करें</string>
+    <string name="orders_call_supplier">सप्लायर कॉल</string>
+    <string name="orders_chat_whatsapp">व्हाट्सएप</string>
 
-    <!-- Invoices &amp; Khata -->
-    <string name="invoices_title">बिल और चालान</string>
+    <!-- Invoices & Khata -->
+    <string name="invoices_title">जीएसटी टैक्स बिल व खाता</string>
     <string name="invoices_tab_all">सभी बिल</string>
     <string name="invoices_tab_unpaid">बकाया बिल</string>
-    <string name="invoices_tab_paid">भुगतान हो चुका</string>
+    <string name="invoices_tab_paid">भुगतान हुआ</string>
     <string name="invoices_empty">कोई बिल नहीं मिला</string>
-    <string name="invoices_download_pdf">PDF बिल डाउनलोड करें</string>
-    <string name="invoices_mark_paid">भुगतान पूर्ण मार्क करें</string>
+    <string name="invoices_download_pdf">⬇️ PDF बिल डाउनलोड करें</string>
+    <string name="invoices_mark_paid">भुगतान दर्ज करें</string>
     <string name="invoices_total_outstanding">कुल बकाया राशि</string>
-    <string name="invoices_due_date">अंतिम तारीख: %1$s</string>
-    <string name="khata_title">खाता-बही व लेन-देन</string>
-    <string name="khata_credit_limit">उधार सीमा: ₹%1$s</string>
+    <string name="invoices_due_date">भुगतान तिथि: %1$s</string>
+    <string name="khata_title">ग्राहक खाता व उधारी बही</string>
+    <string name="khata_credit_limit">क्रेडिट सीमा: ₹%1$s</string>
     <string name="khata_pay_upi">UPI QR से भुगतान करें</string>
     <string name="khata_record_payment">भुगतान दर्ज करें</string>
-    <string name="khata_statement">खाता विवरण (स्टेटमेंट)</string>
+    <string name="khata_statement">खाता विवरण</string>
 
-    <!-- Seller Operations &amp; Rates -->
-    <string name="seller_home_title">मंडी संचालन केंद्र</string>
-    <string name="seller_today_dispatch">आज की सुबह की डिलीवरी</string>
-    <string name="seller_today_tally">मंडी आवक व खरीद टैली</string>
+    <!-- Seller Operations & Hub -->
+    <string name="seller_home_title">मंडी परिचालन केंद्र</string>
+    <string name="seller_today_dispatch">आज सुबह का डिस्पैच</string>
+    <string name="seller_today_sales">आज की कुल बिक्री</string>
+    <string name="seller_today_tally">सुबह की मंडी टैली</string>
     <string name="seller_live_orders">लाइव नए ऑर्डर</string>
-    <string name="seller_rates_title">दैनिक मंडी भाव प्रबंधन</string>
-    <string name="seller_rates_subtitle">1-अंगूठे से भाव सेट करें और लॉक करें</string>
-    <string name="seller_lock_rates">आज के भाव सुरक्षित व लॉक करें</string>
-    <string name="seller_rate_saved">दैनिक भाव सुरक्षित व लाइव हो गए!</string>
-    <string name="seller_fast_fulfill_all">⚡ ऑर्डर पूरा करें (सभी वजन सटीक हैं)</string>
-    <string name="seller_scale_fulfill_title">वजन तौलें और ऑर्डर डिस्पैच करें</string>
-    <string name="seller_ordered_weight">ऑर्डर वजन</string>
-    <string name="seller_delivered_weight">वास्तविक कांटा वजन</string>
+    <string name="seller_rates_title">दैनिक भाव कार्ड प्रबंधक</string>
+    <string name="seller_rates_subtitle">1-क्लिक मूल्य स्टेपर व उपलब्धता लॉक</string>
+    <string name="seller_lock_rates">भाव सेव व लॉक करें</string>
+    <string name="seller_rate_saved">दैनिक भाव सफलतापूर्वक सेव व लाइव सिंक हो गए!</string>
+    <string name="seller_fast_fulfill_all">⚡ सभी वजन सही हैं — 1-क्लिक बिल बनाएं</string>
+    <string name="seller_scale_fulfill_title">तुलाई व ऑर्डर डिस्पैच</string>
+    <string name="seller_ordered_weight">ग्राहक द्वारा मांगा वजन</string>
+    <string name="seller_delivered_weight">कांटे का वास्तविक वजन</string>
     <string name="seller_tare_zero">सटीक वजन (0.0 किग्रा)</string>
     <string name="seller_tare_diff">वजन अंतर: %1$s किग्रा</string>
-    <string name="seller_fulfill_confirm">बिल बनाएं और भेजें</string>
-    <string name="seller_dispatch_success">ऑर्डर पूरा हुआ और बिल बन गया!</string>
-    <string name="seller_products_title">सब्जी मास्टर सूची</string>
+    <string name="seller_fulfill_confirm">बिल बनाएं व डिस्पैच करें</string>
+    <string name="seller_dispatch_success">ऑर्डर पूरा हुआ और इनवॉइस तैयार है!</string>
+    <string name="seller_products_title">सब्जी मास्टर कैटलॉग</string>
     <string name="seller_add_product">+ नई सब्जी जोड़ें</string>
-    <string name="seller_tally_title">मंडी खरीद व आवक हिसाब</string>
-    <string name="seller_add_purchase">+ मंडी लॉट खरीद जोड़ें</string>
-    <string name="seller_add_expense">+ खर्च जोड़ें (हमाली/भाड़ा)</string>
-    <string name="seller_analytics_title">थोक व्यापार बिक्री रिपोर्ट</string>
-    <string name="seller_share_code">खरीदारों के साथ कोड शेयर करें</string>
+    <string name="seller_tally_title">मंडी खरीद व लाभ-हानि टैली</string>
+    <string name="seller_total_demand">कुल मांग: %1$s किग्रा</string>
+    <string name="seller_est_profit">अनुमानित लाभ: ₹%1$s</string>
+    <string name="seller_add_purchase">+ नई मंडी खरीद जोड़ें</string>
+    <string name="seller_add_expense">+ परिचालन खर्च दर्ज करें</string>
+    <string name="seller_analytics_title">थोक व्यापार रिपोर्ट्स</string>
+    <string name="seller_share_code">खरीदारों को सप्लायर कोड शेयर करें</string>
 
-    <!-- Account &amp; Settings -->
-    <string name="account_title">खाता और सेटिंग्स</string>
-    <string name="account_role_buyer">प्रमाणित खरीदार खाता</string>
-    <string name="account_role_seller">प्रमाणित मंडी आढ़ती खाता</string>
+    <!-- Account & Settings -->
+    <string name="account_title">प्रोफाइल व सेटिंग्स</string>
+    <string name="account_role_buyer">सत्यापित खरीदार खाता</string>
+    <string name="account_role_seller">मंडी थोक विक्रेता खाता</string>
     <string name="account_change_language">ऐप की भाषा बदलें (Change Language)</string>
-    <string name="account_app_version">मंडी एक्सप्रेस v%1$s (बिल्ड %2$d)</string>
-    <string name="account_support">मंडी हेल्पलाइन / सहायता</string>
-    <string name="account_terms">नियम और शर्तें</string>
+    <string name="account_app_version">मंडीएक्सप्रेस ऐप v%1$s (बिल्ड %2$d)</string>
+    <string name="account_support">मंडी हेल्पलाइन व सहायता</string>
+    <string name="account_terms">नियम व शर्तें</string>
+    <string name="account_ota_enabled">ऑटो-अपडेट सक्रिय है</string>
+    <string name="account_check_update">अपडेट जांचें</string>
 
     <!-- OTA Updater -->
     <string name="update_title">नया अपडेट उपलब्ध है</string>
-    <string name="update_message">मंडी एक्सप्रेस का नया संस्करण (%1$s) उपलब्ध है जिसमें महत्वपूर्ण सुधार किए गए हैं।</string>
+    <string name="update_message">मंडीएक्सप्रेस का नया संस्करण (%1$s) डाउनलोड के लिए तैयार है जिसमें कई नए फीचर्स और सुधार शामिल हैं।</string>
     <string name="update_btn_install">अभी अपडेट इंस्टॉल करें</string>
     <string name="update_btn_later">बाद में</string>
     <string name="update_downloading">अपडेट डाउनलोड हो रहा है %1$d%%...</string>

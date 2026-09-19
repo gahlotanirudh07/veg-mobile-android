@@ -514,8 +514,9 @@ fun ModernWholesaleProduceCard(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
+                    val displayName = ProduceVisualUtils.getProduceDisplayName(product.safeName, hindiName)
                     Text(
-                        text = product.safeName,
+                        text = displayName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MainInk,

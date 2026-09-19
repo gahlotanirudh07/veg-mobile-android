@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.freshveg.app.core.ui.ProduceThumbnailBadge
+import com.freshveg.app.R
+import androidx.compose.ui.res.stringResource
 import com.freshveg.app.core.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)

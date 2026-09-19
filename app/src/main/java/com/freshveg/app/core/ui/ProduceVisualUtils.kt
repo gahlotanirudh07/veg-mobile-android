@@ -23,6 +23,16 @@ import java.util.Locale
 
 object ProduceVisualUtils {
 
+    fun getProduceDisplayName(name: String?, hindiName: String? = null): String {
+        val isHindi = java.util.Locale.getDefault().language == "hi"
+        if (isHindi) {
+            if (!hindiName.isNullOrBlank()) return hindiName
+            val translated = com.freshveg.app.core.utils.MandiTranslationUtils.translateEnglishToHindi(name ?: "")
+            if (!translated.isNullOrBlank()) return translated
+        }
+        return name ?: ""
+    }
+
     fun formatQuantity(qty: Double, unit: String = "kg"): String {
         val formattedNumber = if (qty % 1.0 == 0.0) {
             qty.toInt().toString()

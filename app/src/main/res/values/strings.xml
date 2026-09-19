@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- App &amp; Common Core -->
+    <!-- App & Core Common -->
     <string name="app_name">MandiExpress</string>
     <string name="common_save">Save</string>
     <string name="common_cancel">Cancel</string>
@@ -41,6 +41,7 @@
     <string name="common_share">Share</string>
     <string name="common_download">Download</string>
     <string name="common_view_details">View Details</string>
+    <string name="common_view_all">View All</string>
     <string name="common_server_reconnecting">Connecting to Mandi Server (DB Starting Up)...</string>
     <string name="common_pull_to_refresh">Pull down to refresh</string>
 
@@ -50,7 +51,7 @@
     <string name="lang_hindi">हिन्दी (Hindi)</string>
     <string name="lang_select_prompt">Choose your preferred language</string>
 
-    <!-- Navigation &amp; Roles -->
+    <!-- Navigation & Bottom Tabs -->
     <string name="nav_home">Home</string>
     <string name="nav_catalogue">Catalogue</string>
     <string name="nav_orders">Orders</string>
@@ -84,7 +85,25 @@
     <string name="auth_logout">Sign Out</string>
     <string name="auth_logout_confirm">Are you sure you want to log out?</string>
 
-    <!-- Buyer Catalogue &amp; Produce Cards -->
+    <!-- Buyer Home & Hub -->
+    <string name="buyer_home_header_title">FreshVeg / MandiExpress</string>
+    <string name="buyer_home_header_subtitle">Premium Mandi Operations</string>
+    <string name="buyer_home_greeting">Namaste, %1$s</string>
+    <string name="buyer_supplier_info">Wholesale Supplier: %1$s</string>
+    <string name="buyer_supplier_code">Supplier Code: %1$s</string>
+    <string name="buyer_order_cutoff">⏰ Order cutoff: %1$s • Next dispatch 05:00 AM</string>
+    <string name="buyer_rates_verified">RATES VERIFIED</string>
+    <string name="buyer_hero_order_title">"Place Today's Morning Order"</string>
+    <string name="buyer_hero_order_subtitle">Direct wholesale rates • Locked until cutoff</string>
+    <string name="buyer_outstanding_dues">Khata Balance Dues</string>
+    <string name="buyer_active_orders">Active Morning Orders</string>
+    <string name="buyer_frequent_reorder">Frequent Staples (1-Tap Reorder)</string>
+    <string name="buyer_frequent_reorder_subtitle">Directly add your regular restaurant supplies</string>
+    <string name="buyer_browse_full_catalogue">Browse Full Mandi Catalogue →</string>
+    <string name="buyer_call_seller">Call Supplier</string>
+
+    <!-- Buyer Catalogue & Cards -->
+    <string name="buyer_catalogue_title">Mandi Produce Catalogue</string>
     <string name="buyer_search_produce">Search 100+ fresh vegetables, herbs, roots...</string>
     <string name="buyer_wholesale_price">Wholesale Rate</string>
     <string name="buyer_custom_rate">Special Rate</string>
@@ -95,6 +114,7 @@
     <string name="buyer_added_to_cart">Added</string>
     <string name="buyer_qty_kg">Quantity (kg)</string>
     <string name="buyer_enter_qty">Enter Qty</string>
+    <string name="buyer_direct_qty_label">Type Qty:</string>
     <string name="buyer_chip_half_kg">+0.5 kg</string>
     <string name="buyer_chip_one_kg">+1 kg</string>
     <string name="buyer_chip_five_kg">+5 kg</string>
@@ -119,16 +139,7 @@
     <string name="buyer_category_herbs">Herbs &amp; Seasoning</string>
     <string name="buyer_category_exotic">Exotics</string>
 
-    <!-- Buyer Home &amp; Hub -->
-    <string name="buyer_home_greeting">Namaste, %1$s</string>
-    <string name="buyer_supplier_info">Wholesale Supplier: %1$s</string>
-    <string name="buyer_order_cutoff">⏰ Order cutoff: %1$s</string>
-    <string name="buyer_outstanding_dues">Khata Balance Dues</string>
-    <string name="buyer_active_orders">Active Morning Orders</string>
-    <string name="buyer_frequent_reorder">Frequent Staples (1-Tap Reorder)</string>
-    <string name="buyer_browse_full_catalogue">Browse Full Mandi Catalogue →</string>
-
-    <!-- Buyer Orders &amp; Deliveries -->
+    <!-- Orders & Deliveries -->
     <string name="orders_title">My Orders &amp; Deliveries</string>
     <string name="orders_tab_all">All</string>
     <string name="orders_tab_pending">Pending</string>
@@ -143,7 +154,7 @@
     <string name="orders_call_supplier">Call Supplier</string>
     <string name="orders_chat_whatsapp">WhatsApp</string>
 
-    <!-- Invoices &amp; Khata -->
+    <!-- Invoices & Khata -->
     <string name="invoices_title">GST Tax Invoices &amp; Billing</string>
     <string name="invoices_tab_all">All Invoices</string>
     <string name="invoices_tab_unpaid">Unpaid Dues</string>
@@ -159,9 +170,10 @@
     <string name="khata_record_payment">Record Payment</string>
     <string name="khata_statement">Account Statement</string>
 
-    <!-- Seller Operations &amp; Rates -->
+    <!-- Seller Operations & Hub -->
     <string name="seller_home_title">Mandi Operations Hub</string>
     <string name="seller_today_dispatch">"Today's Morning Dispatch"</string>
+    <string name="seller_today_sales">"Today's Sales"</string>
     <string name="seller_today_tally">Morning Mandi Tally</string>
     <string name="seller_live_orders">Live Incoming Orders</string>
     <string name="seller_rates_title">Daily Rate Card Manager</string>
@@ -179,12 +191,14 @@
     <string name="seller_products_title">Produce Master Catalogue</string>
     <string name="seller_add_product">+ Add New Vegetable</string>
     <string name="seller_tally_title">Mandi Purchase &amp; Margin Tally</string>
+    <string name="seller_total_demand">Total Demand: %1$s kg</string>
+    <string name="seller_est_profit">Estimated Profit: ₹%1$s</string>
     <string name="seller_add_purchase">+ Add Mandi Lot Purchase</string>
     <string name="seller_add_expense">+ Add Operational Expense</string>
     <string name="seller_analytics_title">Wholesale Business Reports</string>
     <string name="seller_share_code">Share Supplier Code with Buyers</string>
 
-    <!-- Account &amp; Settings -->
+    <!-- Account & Settings -->
     <string name="account_title">Account &amp; Settings</string>
     <string name="account_role_buyer">Verified Buyer Account</string>
     <string name="account_role_seller">Mandi Wholesaler Account</string>
@@ -192,6 +206,8 @@
     <string name="account_app_version">MandiExpress App v%1$s (Build %2$d)</string>
     <string name="account_support">Mandi Helpline / Support</string>
     <string name="account_terms">Terms &amp; Conditions</string>
+    <string name="account_ota_enabled">Automated OTA Updater Enabled</string>
+    <string name="account_check_update">Check Update</string>
 
     <!-- OTA Updater -->
     <string name="update_title">Update Available</string>
