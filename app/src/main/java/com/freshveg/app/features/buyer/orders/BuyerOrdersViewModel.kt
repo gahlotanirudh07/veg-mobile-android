@@ -25,6 +25,7 @@ data class BuyerOrdersUiState(
     val selectedDateFilter: String = "ALL", // "ALL", "TODAY", "YESTERDAY", "THIS_WEEK"
     val selectedSortOrder: String = "NEWEST", // "NEWEST", "OLDEST", "AMOUNT_HIGH", "AMOUNT_LOW"
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val errorMessage: String? = null
 ) {
     val filteredOrders: List<OrderDto> get() {
@@ -114,6 +115,31 @@ class BuyerOrdersViewModel @Inject constructor(
                 if (!silent) {
                     _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load orders") }
                 }
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
+            try {
+                apiService.warmUpDatabase()
+            } catch (_: Exception) {}
+            try {
+                val ordersRes = apiService.getOrders()
+                val cutoffRes = apiService.getCutoffTime()
+                val sellerRes = try { apiService.getConnectedSeller() } catch (_: Exception) { null }
+
+                _uiState.update {
+                    it.copy(
+                        orders = ordersRes.body()?.orders ?: emptyList(),
+                        cutoffTime = cutoffRes.body()?.cutoffTime ?: "03:00 AM",
+                        connectedSeller = sellerRes?.body()?.data,
+                        isRefreshing = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message ?: "Failed to refresh orders") }
             }
         }
     }

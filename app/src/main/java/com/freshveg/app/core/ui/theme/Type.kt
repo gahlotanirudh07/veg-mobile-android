@@ -126,3 +126,84 @@ val Typography = Typography(
         color = InkTertiary
     )
 )
+
+// Catalogue Screen Specialized Typography Hierarchy & Devanagari Harmony
+object CatalogueTypography {
+    val screenTitle = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 20.sp,
+        lineHeight = 26.sp,
+        color = InkPrimary
+    )
+
+    val sectionTitle = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 17.sp,
+        lineHeight = 22.sp,
+        color = InkPrimary
+    )
+
+    val productTitle = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 16.sp,
+        lineHeight = 22.sp,
+        color = InkPrimary
+    )
+
+    val priceLarge = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        lineHeight = 22.sp,
+        color = BrandGreenPrimary
+    )
+
+    val priceUnit = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.5.sp,
+        lineHeight = 16.sp,
+        color = InkSecondary
+    )
+
+    val secondaryInfo = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.5.sp,
+        lineHeight = 17.sp,
+        color = InkSecondary
+    )
+
+    val buttonChip = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 13.5.sp,
+        lineHeight = 18.sp
+    )
+
+    val buttonCompact = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 12.5.sp,
+        lineHeight = 16.sp
+    )
+
+    val searchPlaceholder = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        color = InkTertiary
+    )
+
+    val microBadge = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 11.sp,
+        lineHeight = 14.sp
+    )
+}
+

@@ -23,14 +23,71 @@ import java.util.Locale
 
 object ProduceVisualUtils {
 
-    fun getProduceDisplayName(name: String?, hindiName: String? = null): String {
-        val isHindi = java.util.Locale.getDefault().language == "hi"
+    fun isHindi(): Boolean {
+        val managerLang = com.freshveg.app.core.i18n.LanguageManager.instance?.currentLanguage?.value
+        if (managerLang != null) {
+            return managerLang == com.freshveg.app.core.i18n.AppLanguage.HINDI
+        }
+        return java.util.Locale.getDefault().language == "hi"
+    }
+
+    fun getProduceDisplayName(name: String?, hindiName: String? = null, isHindi: Boolean = isHindi()): String {
         if (isHindi) {
             if (!hindiName.isNullOrBlank()) return hindiName
             val translated = com.freshveg.app.core.utils.MandiTranslationUtils.translateEnglishToHindi(name ?: "")
             if (!translated.isNullOrBlank()) return translated
         }
         return name ?: ""
+    }
+
+    fun getProduceSecondaryName(name: String?, hindiName: String? = null, isHindi: Boolean = isHindi()): String? {
+        val hi = if (!hindiName.isNullOrBlank()) hindiName else com.freshveg.app.core.utils.MandiTranslationUtils.translateEnglishToHindi(name ?: "")
+        return if (isHindi) {
+            if (!name.isNullOrBlank() && name != hi) name else null
+        } else {
+            if (!hi.isNullOrBlank() && hi != name) hi else null
+        }
+    }
+
+    fun getCategoryDisplayName(name: String?, isHindi: Boolean = isHindi()): String {
+        if (!isHindi) return name ?: ""
+        val safe = name?.trim() ?: ""
+        return when {
+            safe.contains("Fruiting", ignoreCase = true) || safe.contains("फलदार", ignoreCase = true) -> "फलदार सब्जियां"
+            safe.contains("Root", ignoreCase = true) || safe.contains("Tuber", ignoreCase = true) || safe.contains("जड़", ignoreCase = true) -> "जड़ वाली सब्जियां"
+            safe.contains("Leafy", ignoreCase = true) || safe.contains("Greens", ignoreCase = true) || safe.contains("पत्तेदार", ignoreCase = true) -> "पत्तेदार सब्जियां"
+            safe.contains("Gourd", ignoreCase = true) || safe.contains("Squash", ignoreCase = true) || safe.contains("बेल", ignoreCase = true) -> "बेल वाली सब्जियां"
+            safe.contains("Exotic", ignoreCase = true) || safe.contains("Continental", ignoreCase = true) || safe.contains("विदेशी", ignoreCase = true) -> "विदेशी सब्जियां"
+            safe.contains("Fruit", ignoreCase = true) || safe.contains("फल", ignoreCase = true) -> "ताजे फल"
+            safe.contains("Herb", ignoreCase = true) || safe.contains("Seasoning", ignoreCase = true) || safe.contains("मसाले", ignoreCase = true) -> "मसाले और हर्ब्स"
+            safe.equals("All", ignoreCase = true) || safe.equals("All Produce", ignoreCase = true) -> "सभी सब्जियां"
+            else -> com.freshveg.app.core.utils.MandiTranslationUtils.translateEnglishToHindi(safe) ?: safe
+        }
+    }
+
+    fun getUnitDisplayName(unit: String?, isHindi: Boolean = isHindi()): String {
+        if (!isHindi) return unit?.lowercase() ?: "kg"
+        return when (unit?.lowercase()?.trim()) {
+            "kg", "kilogram" -> "किलो"
+            "crate" -> "क्रेट"
+            "bunch" -> "गुच्छा"
+            "piece", "pc", "pcs" -> "पीस"
+            "packet", "pkt" -> "पैकेट"
+            "sack", "bag", "bori" -> "बोरी"
+            "gram", "gm", "g" -> "ग्राम"
+            else -> unit?.lowercase() ?: "किलो"
+        }
+    }
+
+    fun getOrderStatusDisplayName(status: String?, isHindi: Boolean = isHindi()): String {
+        if (!isHindi) return status ?: ""
+        return when (status?.uppercase()?.trim()) {
+            "PENDING" -> "लंबित"
+            "CONFIRMED" -> "स्वीकृत"
+            "FULFILLED", "DELIVERED" -> "डिस्पैच / डिलीवर"
+            "CANCELLED" -> "रद्द"
+            else -> status ?: ""
+        }
     }
 
     fun formatQuantity(qty: Double, unit: String = "kg"): String {
@@ -172,23 +229,26 @@ fun ProduceThumbnailBadge(
     name: String?,
     hindiName: String? = null,
     imageUrl: String? = null,
-    size: Dp = 68.dp,
-    cornerRadius: Dp = 12.dp,
+    size: Dp = 60.dp,
+    cornerRadius: Dp = 10.dp,
+    useUnifiedBackground: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val modelUri = ProduceVisualUtils.getProduceAssetPath(name, hindiName, imageUrl)
-    val bgColor = ProduceVisualUtils.getProduceBgColor(name, hindiName)
+    val containerBg = if (useUnifiedBackground) Color(0xFFF7F8F5) else ProduceVisualUtils.getProduceBgColor(name, hindiName)
+    val containerBorder = if (useUnifiedBackground) Color(0xFFE5E9E2) else Color(0x14000000)
     val context = LocalContext.current
 
     Box(
         modifier = modifier
             .size(size)
             .clip(RoundedCornerShape(cornerRadius))
-            .background(bgColor)
-            .border(BorderStroke(0.75.dp, Color(0x12000000)), RoundedCornerShape(cornerRadius)),
+            .background(containerBg)
+            .border(BorderStroke(0.75.dp, containerBorder), RoundedCornerShape(cornerRadius)),
         contentAlignment = Alignment.Center
     ) {
-        val innerPadding = if (size > 60.dp) 8.dp else 4.dp
+        // High density image fill: minimal 1dp padding so vector produce art occupies >95% of badge area
+        val innerPadding = if (size >= 56.dp) 1.dp else 0.5.dp
         AsyncImage(
             model = ImageRequest.Builder(context)
                 .data(modelUri)
@@ -202,3 +262,4 @@ fun ProduceThumbnailBadge(
         )
     }
 }
+

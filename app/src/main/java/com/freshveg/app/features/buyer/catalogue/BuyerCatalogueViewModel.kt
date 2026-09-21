@@ -23,6 +23,7 @@ data class BuyerCatalogueUiState(
     val searchQuery: String = "",
     val isCartOpen: Boolean = false,
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val isPlacingOrder: Boolean = false,
     val errorMessage: String? = null,
     val orderSuccessDto: OrderDto? = null
@@ -112,6 +113,41 @@ class BuyerCatalogueViewModel @Inject constructor(
                 if (!silent) {
                     _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load catalog") }
                 }
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            try {
+                // Pre-warm database in case serverless PostgreSQL was asleep
+                try {
+                    apiService.warmUpDatabase()
+                } catch (_: Exception) {}
+
+                val productsRes = apiService.getProducts()
+                val categoriesRes = apiService.getCategories()
+                val sellerRes = apiService.getConnectedSeller()
+                val cutoffRes = apiService.getCutoffTime()
+                val frequentRes = apiService.getBuyerFrequentItems()
+                val lastOrderRes = apiService.getBuyerLastOrder()
+
+                _uiState.update {
+                    it.copy(
+                        products = productsRes.body() ?: it.products,
+                        categories = categoriesRes.body() ?: it.categories,
+                        connectedSeller = sellerRes.body()?.data ?: it.connectedSeller,
+                        cutoffTime = cutoffRes.body()?.cutoffTime ?: it.cutoffTime,
+                        frequentItems = frequentRes.body()?.frequentItems ?: it.frequentItems,
+                        lastOrder = lastOrderRes.body()?.lastOrder ?: it.lastOrder,
+                        errorMessage = null
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(errorMessage = e.message ?: "Failed to refresh catalogue") }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false) }
             }
         }
     }

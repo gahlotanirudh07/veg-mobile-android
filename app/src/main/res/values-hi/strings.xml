@@ -91,7 +91,7 @@
     <string name="buyer_home_greeting">नमस्ते, %1$s</string>
     <string name="buyer_supplier_info">थोक सप्लायर: %1$s</string>
     <string name="buyer_supplier_code">सप्लायर कोड: %1$s</string>
-    <string name="buyer_order_cutoff">⏰ ऑर्डर कटऑफ: %1$s • अगली डिलीवरी सुबह 05:00 बजे</string>
+    <string name="buyer_order_cutoff">ऑर्डर कटऑफ: %1$s • अगली डिलीवरी सुबह 05:00 बजे</string>
     <string name="buyer_rates_verified">भाव सत्यापित</string>
     <string name="buyer_hero_order_title">आज सुबह का ऑर्डर भेजें</string>
     <string name="buyer_hero_order_subtitle">सीधे थोक भाव • कटऑफ समय तक लॉक</string>
@@ -110,7 +110,7 @@
     <string name="buyer_market_rate">बाजार भाव</string>
     <string name="buyer_in_stock">उपलब्ध</string>
     <string name="buyer_out_of_stock">स्टॉक समाप्त</string>
-    <string name="buyer_add_to_cart">+ जोड़ें</string>
+    <string name="buyer_add_to_cart">जोड़ें</string>
     <string name="buyer_added_to_cart">जुड़ा हुआ</string>
     <string name="buyer_qty_kg">मात्रा (किग्रा)</string>
     <string name="buyer_enter_qty">मात्रा लिखें</string>
@@ -216,4 +216,104 @@
     <string name="update_btn_later">बाद में</string>
     <string name="update_downloading">अपडेट डाउनलोड हो रहा है %1$d%%...</string>
     <string name="update_already_latest">आप मंडीएक्सप्रेस का नवीनतम संस्करण (v%1$s) उपयोग कर रहे हैं।</string>
+
+    <!-- Wholesale Services Directory -->
+    <string name="services_directory_title">मंडी सेवाएं और सुविधाएं (Wholesale Services)</string>
+    <string name="services_fresh_mandi_title">ताजा मंडी</string>
+    <string name="services_fresh_mandi_desc">60+ दैनिक थोक सब्जियां सीधे मंडी से</string>
+    <string name="services_fresh_mandi_cta">सब्जियां देखें →</string>
+    <string name="services_weighment_title">लाइव कांटा तौल</string>
+    <string name="services_weighment_desc">क्रेट डिस्पैच से पहले सटीक डिजिटल तौल</string>
+    <string name="services_weighment_cta">ऑर्डर देखें →</string>
+    <string name="services_invoices_title">GST टैक्स बिल</string>
+    <string name="services_invoices_desc">मान्य टैक्स इनवॉइस और तुरंत PDF पर्ची</string>
+    <string name="services_invoices_cta">बिल देखें →</string>
+    <string name="services_khata_title">खाता और बहीखाता</string>
+    <string name="services_khata_desc">रनिंग बैलेंस, भुगतान और खाता विवरण</string>
+    <string name="services_khata_cta">खाता देखें →</string>
+    <string name="services_helpdesk_title">थोक सहायता केंद्र (हेल्पडेस्क)</string>
+    <string name="services_helpdesk_desc">विशेष क्रेट या कस्टमाइज्ड ग्रेडिंग की जरूरत है?</string>
+
+    <!-- Buyer Home & Dispatch Status -->
+    <string name="buyer_no_pending_dispatch">फिलहाल कोई पेंडिंग डिस्पैच नहीं है</string>
+    <string name="buyer_active_orders_count">%1$d सक्रिय ऑर्डर प्रगति पर है</string>
+    <string name="buyer_step_received">प्राप्त</string>
+    <string name="buyer_step_weighed">तौला गया</string>
+    <string name="buyer_step_invoiced">बिल बना</string>
+    <string name="buyer_step_dispatched">डिस्पैच</string>
+    <string name="buyer_khata_balance_title">खाता और रनिंग बैलेंस</string>
+    <string name="buyer_khata_all_settled">सभी बिल चुकता हैं (₹0.00)</string>
+    <string name="buyer_khata_outstanding">बकाया राशि: ₹%1$d</string>
+    <string name="buyer_freq_label">मात्रा: %1$s %2$s</string>
+
+    <!-- Invoices & Tax Bills -->
+    <string name="invoices_screen_title">मेरे इनवॉइस और बिल</string>
+    <string name="invoices_screen_subtitle">GST टैक्स बिल और खाता इतिहास</string>
+    <string name="invoices_empty_title">अभी तक कोई इनवॉइस नहीं बना है</string>
+    <string name="invoices_empty_desc">आपके थोक विक्रेता द्वारा बनाए गए टैक्स बिल यहां दिखाई देंगे।</string>
+    <string name="invoices_card_number">इनवॉइस %1$s</string>
+    <string name="invoices_tax_badge">टैक्स इनवॉइस</string>
+    <string name="invoices_total_billed">कुल बिल राशि</string>
+    <string name="invoices_outstanding_bal">बकाया राशि</string>
+    <string name="invoices_view_tax_bill">टैक्स बिल देखें</string>
+
+    <!-- Catalogue Additional -->
+    <string name="buyer_frequent_items_count">पिछली डिलीवरी से %1$d आइटम</string>
+    <string name="buyer_reorder_all">सभी पुनः ऑर्डर करें</string>
+    <string name="buyer_search_placeholder">100+ ताजी सब्जियां, हर्ब्स खोजें...</string>
+    <string name="buyer_discount_off">%1$s छूट</string>
+
+    <!-- Orders Screen Additional -->
+    <string name="orders_dispatch_subtitle">सुबह का लाइव डिस्पैच और डिजिटल तौल</string>
+    <string name="orders_filter_today">आज</string>
+    <string name="orders_filter_yesterday">कल</string>
+    <string name="orders_filter_this_week">इस सप्ताह</string>
+    <string name="orders_card_number">ऑर्डर #%1$s</string>
+    <string name="orders_view_weighment_cta">तौल विवरण देखें →</string>
+    <string name="orders_placed_on">दिनांक %1$s को दिया गया</string>
+    <string name="orders_itemized_weighment">सब्जियां और डिजिटल कांटा तौल:</string>
+    <string name="orders_item_weighed_and_ordered">तौल: %1$s (ऑर्डर: %2$s)</string>
+    <string name="orders_item_ordered_only">ऑर्डर: %1$s</string>
+
+    <!-- Auth Additional -->
+    <string name="auth_signin_heading">अपने खाते में साइन इन करें</string>
+    <string name="auth_remember_me">पासवर्ड याद रखें और साइन इन रहें</string>
+    <string name="auth_signin_btn">साइन इन करें</string>
+    <string name="auth_choose_role">FreshVeg पर नए हैं? अपनी भूमिका चुनें</string>
+    <string name="auth_reg_buyer_title">खरीदार के रूप में रजिस्टर करें</string>
+    <string name="auth_reg_buyer_sub">सप्लायर कोड से जुड़ें और दैनिक ऑर्डर दें</string>
+    <string name="auth_reg_seller_title">विक्रेता के रूप में रजिस्टर करें</string>
+    <string name="auth_reg_seller_sub">थोक व्यापार शुरू करें और सेलर कोड पाएं</string>
+    <string name="auth_otp_label">6-अंकों का OTP</string>
+
+    <!-- Cart Additional -->
+    <string name="buyer_cart_delivery_notice">नियमित डिलीवरी कल सुबह 05:00 – 07:00 बजे। अंतिम बिलिंग मंडी कांटा तौल के आधार पर होगी।</string>
+    <string name="buyer_cart_note_placeholder">उदा. साफ पालक, छोटा प्याज</string>
+    <string name="buyer_cart_savings">बचत: -%1$s</string>
+
+    <!-- Invoice Details Sheet Additional -->
+    <string name="invoice_detail_tax_badge">टैक्स इनवॉइस</string>
+    <string name="invoice_detail_prop">मालिक: %1$s</string>
+    <string name="invoice_detail_mob">मोबा: +91 %1$s</string>
+    <string name="invoice_detail_billed_to">बिल जारी (खरीदार):</string>
+    <string name="invoice_detail_particulars">सब्जियां व कांटा तौल विवरण</string>
+    <string name="invoice_detail_subtotal">सब्जी उप-योग</string>
+    <string name="invoice_detail_gst">GST कर</string>
+    <string name="invoice_detail_prev_bal">पिछला खाता बैलेंस</string>
+    <string name="invoice_detail_total_due">कुल देय राशि</string>
+    <string name="invoice_detail_share_whatsapp">व्हाट्सएप पर इनवॉइस भेजें</string>
+    <string name="invoice_detail_download_pdf">PDF बिल डाउनलोड करें</string>
+    <string name="invoice_detail_contact_name">संपर्क नाम</string>
+    <string name="invoice_detail_phone">फोन नंबर</string>
+    <string name="invoice_detail_address">पता</string>
+    <string name="invoice_detail_header">इनवॉइस विवरण</string>
+    <string name="invoice_detail_number">इनवॉइस संख्या</string>
+    <string name="invoice_detail_order_number">ऑर्डर संख्या</string>
+    <string name="invoice_detail_date">इनवॉइस तिथि</string>
+    <string name="invoice_detail_status">स्थिति</string>
+    <string name="invoice_table_ord">ऑर्डर</string>
+    <string name="invoice_table_del">तौल</string>
+    <string name="invoice_table_unit">इकाई</string>
+    <string name="invoice_detail_savings">छूट बचत</string>
+    <string name="invoice_detail_thanks">आपके व्यापार के लिए धन्यवाद।</string>
 </resources>

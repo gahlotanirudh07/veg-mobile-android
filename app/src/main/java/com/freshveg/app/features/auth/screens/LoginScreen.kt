@@ -26,6 +26,13 @@ import com.freshveg.app.core.network.AuthModeType
 import com.freshveg.app.core.ui.theme.*
 import com.freshveg.app.features.auth.viewmodel.AuthViewModel
 
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.sp
+import com.freshveg.app.R
+import com.freshveg.app.core.i18n.AppLanguage
+import com.freshveg.app.core.i18n.LanguageManager
+import kotlinx.coroutines.flow.StateFlow
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
@@ -35,6 +42,9 @@ fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val currentLang by (LanguageManager.instance?.currentLanguage ?: remember { mutableStateOf(AppLanguage.ENGLISH) }).let {
+        if (it is StateFlow<*>) (it as StateFlow<AppLanguage>).collectAsState() else remember { mutableStateOf(AppLanguage.ENGLISH) }
+    }
 
     Scaffold(
         containerColor = BackgroundSurface
@@ -47,7 +57,37 @@ fun LoginScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Language Toggle Chip
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = NeutralSurface,
+                    border = BorderStroke(1.dp, BorderSubtle),
+                    modifier = Modifier.clickable {
+                        LanguageManager.instance?.toggleLanguage()
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = if (currentLang == AppLanguage.HINDI) "🇮🇳 हिन्दी" else "🇬🇧 EN",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = MainInk
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Logo & Title
             Icon(
@@ -58,8 +98,8 @@ fun LoginScreen(
             )
 
             Spacer(modifier = Modifier.height(8.dp))
-            Text("FreshVeg", style = MaterialTheme.typography.headlineMedium, color = MainInk, fontWeight = FontWeight.Bold)
-            Text("Wholesale Vegetable Marketplace", style = MaterialTheme.typography.bodyMedium, color = InkSecondary)
+            Text("FreshVeg / MandiExpress", style = MaterialTheme.typography.headlineMedium, color = MainInk, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.buyer_home_header_subtitle), style = MaterialTheme.typography.bodyMedium, color = InkSecondary)
 
             Spacer(modifier = Modifier.height(28.dp))
 
@@ -72,7 +112,7 @@ fun LoginScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
-                        "Sign In to Your Account",
+                        stringResource(R.string.auth_signin_heading),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MainInk
@@ -83,7 +123,7 @@ fun LoginScreen(
                     OutlinedTextField(
                         value = uiState.mobile,
                         onValueChange = viewModel::onMobileChange,
-                        label = { Text("Mobile Number (+91)") },
+                        label = { Text(stringResource(R.string.auth_enter_phone)) },
                         leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.fillMaxWidth(),
@@ -97,7 +137,7 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = uiState.password,
                             onValueChange = viewModel::onPasswordChange,
-                            label = { Text("Password") },
+                            label = { Text(stringResource(R.string.auth_enter_password)) },
                             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                             trailingIcon = {
                                 IconButton(onClick = viewModel::togglePasswordVisibility) {
@@ -117,7 +157,7 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = uiState.otp,
                             onValueChange = viewModel::onOtpChange,
-                            label = { Text("6-Digit OTP") },
+                            label = { Text(stringResource(R.string.auth_otp_label)) },
                             leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(),
@@ -150,7 +190,7 @@ fun LoginScreen(
                             colors = CheckboxDefaults.colors(checkedColor = ActionGreen)
                         )
                         Text(
-                            text = "Save password & keep me signed in",
+                            text = stringResource(R.string.auth_remember_me),
                             style = MaterialTheme.typography.bodyMedium,
                             color = InkSecondary
                         )
@@ -170,7 +210,7 @@ fun LoginScreen(
                         if (uiState.isLoading) {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
                         } else {
-                            Text("Sign In", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                            Text(stringResource(R.string.auth_signin_btn), style = MaterialTheme.typography.titleMedium, color = Color.White)
                         }
                     }
                 }
@@ -185,7 +225,7 @@ fun LoginScreen(
             ) {
                 HorizontalDivider(modifier = Modifier.weight(1f), color = BorderSubtle)
                 Text(
-                    "  New to FreshVeg? Choose your role  ",
+                    text = "  ${stringResource(R.string.auth_choose_role)}  ",
                     style = MaterialTheme.typography.labelMedium,
                     color = InkSecondary
                 )
@@ -222,13 +262,13 @@ fun LoginScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Register as a Buyer",
+                            text = stringResource(R.string.auth_reg_buyer_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MainInk
                         )
                         Text(
-                            "Connect to your seller code & place daily orders",
+                            text = stringResource(R.string.auth_reg_buyer_sub),
                             style = MaterialTheme.typography.bodySmall,
                             color = InkSecondary
                         )
@@ -268,13 +308,13 @@ fun LoginScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Register as a Seller",
+                            text = stringResource(R.string.auth_reg_seller_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MainInk
                         )
                         Text(
-                            "Set up your wholesale business & get a Seller Code",
+                            text = stringResource(R.string.auth_reg_seller_sub),
                             style = MaterialTheme.typography.bodySmall,
                             color = InkSecondary
                         )

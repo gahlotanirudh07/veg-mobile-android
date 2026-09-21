@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,11 +17,14 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,6 +45,19 @@ fun OrdersPipelineScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val pullToRefreshState = rememberPullToRefreshState()
+
+    if (pullToRefreshState.isRefreshing) {
+        LaunchedEffect(true) {
+            viewModel.refresh()
+        }
+    }
+
+    LaunchedEffect(uiState.isRefreshing) {
+        if (!uiState.isRefreshing) {
+            pullToRefreshState.endRefresh()
+        }
+    }
 
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
@@ -84,7 +101,7 @@ fun OrdersPipelineScreen(
                     IconButton(onClick = viewModel::openEditCutoff) {
                         Icon(Icons.Default.Timer, contentDescription = "Cutoff Settings", tint = MainInk)
                     }
-                    IconButton(onClick = viewModel::loadOrders) {
+                    IconButton(onClick = viewModel::refresh) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = MainInk)
                     }
                 },
@@ -319,6 +336,7 @@ fun OrdersPipelineScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .weight(1f)
+                    .nestedScroll(pullToRefreshState.nestedScrollConnection)
             ) {
                 if (uiState.isLoading && uiState.orders.isEmpty()) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = ActionGreen)
@@ -326,6 +344,7 @@ fun OrdersPipelineScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
                             .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
@@ -358,6 +377,13 @@ fun OrdersPipelineScreen(
                         }
                     }
                 }
+
+                PullToRefreshContainer(
+                    state = pullToRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    containerColor = Color.White,
+                    contentColor = ActionGreen
+                )
             }
         }
     }

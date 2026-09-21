@@ -8,17 +8,21 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -40,6 +44,19 @@ fun SellerRatesScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val pullToRefreshState = rememberPullToRefreshState()
+
+    if (pullToRefreshState.isRefreshing) {
+        LaunchedEffect(true) {
+            viewModel.refresh()
+        }
+    }
+
+    LaunchedEffect(uiState.isRefreshing) {
+        if (!uiState.isRefreshing) {
+            pullToRefreshState.endRefresh()
+        }
+    }
 
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
@@ -88,7 +105,7 @@ fun SellerRatesScreen(
                         )
                     }
                     // Refresh
-                    IconButton(onClick = viewModel::loadRates) {
+                    IconButton(onClick = viewModel::refresh) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = ActionGreen)
                     }
                 },
@@ -268,6 +285,7 @@ fun SellerRatesScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .weight(1f)
+                    .nestedScroll(pullToRefreshState.nestedScrollConnection)
             ) {
                 if (uiState.isLoading && uiState.rateItems.isEmpty()) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = ActionGreen)
@@ -275,6 +293,7 @@ fun SellerRatesScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
                             .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
@@ -303,6 +322,13 @@ fun SellerRatesScreen(
                         }
                     }
                 }
+
+                PullToRefreshContainer(
+                    state = pullToRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    containerColor = Color.White,
+                    contentColor = ActionGreen
+                )
             }
         }
     }

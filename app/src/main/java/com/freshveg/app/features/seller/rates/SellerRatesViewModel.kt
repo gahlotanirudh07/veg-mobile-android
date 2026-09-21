@@ -43,6 +43,7 @@ data class SellerRatesUiState(
     val businessName: String? = null,
     val hideMasterCatalogue: Boolean = false,
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null
@@ -118,6 +119,42 @@ class SellerRatesViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Network error") }
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, errorMessage = null, successMessage = null) }
+            try {
+                apiService.warmUpDatabase()
+            } catch (_: Exception) {}
+            try {
+                val ratesRes = apiService.getSellerRateCard()
+                val catRes = apiService.getCategories()
+
+                if (ratesRes.isSuccessful && ratesRes.body() != null) {
+                    val items = ratesRes.body()!!.map { prod ->
+                        RateItemUiState(
+                            product = prod,
+                            originalPrice = prod.sellingPrice,
+                            currentPrice = prod.sellingPrice,
+                            originalAvailability = prod.isAvailable,
+                            isAvailable = prod.isAvailable
+                        )
+                    }
+                    _uiState.update {
+                        it.copy(
+                            rateItems = items,
+                            categories = catRes.body() ?: emptyList(),
+                            isRefreshing = false
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isRefreshing = false) }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message ?: "Network error") }
             }
         }
     }

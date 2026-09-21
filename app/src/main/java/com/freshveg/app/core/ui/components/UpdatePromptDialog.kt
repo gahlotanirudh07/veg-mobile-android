@@ -33,7 +33,9 @@ fun UpdatePromptDialog(
     onInstall: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isDismissable = !updateInfo.isForceUpdate && downloadState !is UpdateDownloadState.Downloading
+    val isDismissable = !updateInfo.isForceUpdate &&
+        downloadState !is UpdateDownloadState.Downloading &&
+        downloadState !is UpdateDownloadState.Installing
 
     AlertDialog(
         onDismissRequest = {
@@ -60,6 +62,7 @@ fun UpdatePromptDialog(
                         .clip(CircleShape)
                         .background(
                             when (downloadState) {
+                                is UpdateDownloadState.Installing -> ActionGreen.copy(alpha = 0.15f)
                                 is UpdateDownloadState.ReadyToInstall -> ActionGreen.copy(alpha = 0.15f)
                                 is UpdateDownloadState.Error -> RedError.copy(alpha = 0.15f)
                                 else -> ActionGreen.copy(alpha = 0.12f)
@@ -67,31 +70,40 @@ fun UpdatePromptDialog(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = when (downloadState) {
-                            is UpdateDownloadState.ReadyToInstall -> Icons.Default.CheckCircle
-                            is UpdateDownloadState.Error -> Icons.Default.ErrorOutline
-                            is UpdateDownloadState.Downloading -> Icons.Default.Download
-                            else -> Icons.Default.SystemUpdate
-                        },
-                        contentDescription = null,
-                        tint = when (downloadState) {
-                            is UpdateDownloadState.ReadyToInstall -> ActionGreen
-                            is UpdateDownloadState.Error -> RedError
-                            else -> ActionGreen
-                        },
-                        modifier = Modifier.size(30.dp)
-                    )
+                    if (downloadState is UpdateDownloadState.Installing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(28.dp),
+                            color = ActionGreen,
+                            strokeWidth = 2.5.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = when (downloadState) {
+                                is UpdateDownloadState.ReadyToInstall -> Icons.Default.CheckCircle
+                                is UpdateDownloadState.Error -> Icons.Default.ErrorOutline
+                                is UpdateDownloadState.Downloading -> Icons.Default.Download
+                                else -> Icons.Default.SystemUpdate
+                            },
+                            contentDescription = null,
+                            tint = when (downloadState) {
+                                is UpdateDownloadState.ReadyToInstall -> ActionGreen
+                                is UpdateDownloadState.Error -> RedError
+                                else -> ActionGreen
+                            },
+                            modifier = Modifier.size(30.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
                     text = when (downloadState) {
+                        is UpdateDownloadState.Installing -> "Installing Update..."
                         is UpdateDownloadState.ReadyToInstall -> "Update Ready to Install"
                         is UpdateDownloadState.Downloading -> "Downloading Update..."
                         is UpdateDownloadState.Error -> "Download Interrupted"
-                        else -> "App Update Available ??"
+                        else -> "App Update Available"
                     },
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
@@ -191,6 +203,41 @@ fun UpdatePromptDialog(
                         }
                     }
 
+                    is UpdateDownloadState.Installing -> {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = ActionGreen.copy(alpha = 0.08f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(22.dp),
+                                    color = ActionGreen,
+                                    strokeWidth = 2.dp
+                                )
+                                Column {
+                                    Text(
+                                        text = "Launching Installer...",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MainInk
+                                    )
+                                    Text(
+                                        text = "Please tap 'Update' on the system prompt to finish installation.",
+                                        fontSize = 11.5.sp,
+                                        color = InkSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     is UpdateDownloadState.ReadyToInstall -> {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
@@ -259,6 +306,22 @@ fun UpdatePromptDialog(
                 is UpdateDownloadState.Downloading -> {
                     // Downloading in progress
                 }
+                is UpdateDownloadState.Installing -> {
+                    Button(
+                        onClick = onInstall,
+                        colors = ButtonDefaults.buttonColors(containerColor = ActionGreen),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Reopen Installer", fontWeight = FontWeight.Bold)
+                    }
+                }
                 is UpdateDownloadState.ReadyToInstall -> {
                     Button(
                         onClick = onInstall,
@@ -292,7 +355,7 @@ fun UpdatePromptDialog(
             }
         },
         dismissButton = {
-            if (isDismissable && downloadState !is UpdateDownloadState.ReadyToInstall) {
+            if (isDismissable && downloadState !is UpdateDownloadState.ReadyToInstall && downloadState !is UpdateDownloadState.Installing) {
                 TextButton(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth()

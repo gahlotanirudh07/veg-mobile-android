@@ -8,16 +8,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +44,19 @@ fun BuyerOrdersScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val pullToRefreshState = rememberPullToRefreshState()
+
+    if (pullToRefreshState.isRefreshing) {
+        LaunchedEffect(true) {
+            viewModel.refresh()
+        }
+    }
+
+    LaunchedEffect(uiState.isRefreshing) {
+        if (!uiState.isRefreshing) {
+            pullToRefreshState.endRefresh()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -53,7 +70,7 @@ fun BuyerOrdersScreen(
                             color = MainInk
                         )
                         Text(
-                            text = "Live Morning Dispatch & Weighment",
+                            text = stringResource(R.string.orders_dispatch_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = InkSecondary
                         )
@@ -85,9 +102,9 @@ fun BuyerOrdersScreen(
             ) {
                 listOf(
                     "ALL" to stringResource(R.string.orders_tab_all),
-                    "TODAY" to "Today",
-                    "YESTERDAY" to "Yesterday",
-                    "THIS_WEEK" to "This Week"
+                    "TODAY" to stringResource(R.string.orders_filter_today),
+                    "YESTERDAY" to stringResource(R.string.orders_filter_yesterday),
+                    "THIS_WEEK" to stringResource(R.string.orders_filter_this_week)
                 ).forEach { (filter, label) ->
                     val isSelected = uiState.selectedDateFilter == filter
                     Surface(
@@ -106,42 +123,56 @@ fun BuyerOrdersScreen(
                 }
             }
 
-            if (uiState.isLoading && uiState.orders.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = ActionGreen)
-                }
-            } else if (uiState.filteredOrders.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("📦", fontSize = 48.sp)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = stringResource(R.string.orders_empty),
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MainInk
-                        )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(pullToRefreshState.nestedScrollConnection)
+            ) {
+                if (uiState.isLoading && uiState.orders.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = ActionGreen)
+                    }
+                } else if (uiState.filteredOrders.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("📦", fontSize = 48.sp)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = stringResource(R.string.orders_empty),
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MainInk
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(uiState.filteredOrders, key = { it.id }) { order ->
+                            BuyerOrderCard(
+                                order = order,
+                                onClick = { viewModel.openOrderDetail(order) },
+                                onShare = { viewModel.shareOrderStatus(context, order) }
+                            )
+                        }
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(uiState.filteredOrders, key = { it.id }) { order ->
-                        BuyerOrderCard(
-                            order = order,
-                            onClick = { viewModel.openOrderDetail(order) },
-                            onShare = { viewModel.shareOrderStatus(context, order) }
-                        )
-                    }
-                }
+
+                PullToRefreshContainer(
+                    state = pullToRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    containerColor = Color.White,
+                    contentColor = ActionGreen
+                )
             }
         }
     }
@@ -177,7 +208,7 @@ fun BuyerOrderCard(
             ) {
                 Column {
                     Text(
-                        text = "Order #${order.orderNumber.ifBlank { order.id.takeLast(6) }}",
+                        text = stringResource(R.string.orders_card_number, order.orderNumber.ifBlank { order.id.takeLast(6) }),
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium,
                         color = MainInk
@@ -199,7 +230,7 @@ fun BuyerOrderCard(
                     }
                 ) {
                     Text(
-                        text = order.status,
+                        text = ProduceVisualUtils.getOrderStatusDisplayName(order.status),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = when (order.status) {
@@ -215,8 +246,9 @@ fun BuyerOrderCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            val produceSummary = order.items.take(3).joinToString { ProduceVisualUtils.getProduceDisplayName(it.displayName, it.hindiName) }
             Text(
-                text = "${order.items.size} Produce Items • ${order.items.take(3).joinToString { it.displayName }}",
+                text = "${stringResource(R.string.orders_item_count, order.items.size)} • $produceSummary",
                 style = MaterialTheme.typography.bodySmall,
                 color = InkSecondary,
                 maxLines = 1
@@ -230,14 +262,14 @@ fun BuyerOrderCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Total: ${ProduceVisualUtils.formatCurrency(order.totalAmount)}",
+                    text = "${stringResource(R.string.common_total)}: ${ProduceVisualUtils.formatCurrency(order.totalAmount)}",
                     fontWeight = FontWeight.ExtraBold,
                     style = MaterialTheme.typography.titleMedium,
                     color = ActionGreen
                 )
 
                 TextButton(onClick = onClick) {
-                    Text("View Weighment →", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = ActionGreen)
+                    Text(stringResource(R.string.orders_view_weighment_cta), fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = ActionGreen)
                 }
             }
         }
@@ -251,17 +283,44 @@ fun BuyerOrderDetailBottomSheet(
     onDismiss: () -> Unit,
     onShare: () -> Unit
 ) {
+    val currentLang by (com.freshveg.app.core.i18n.LanguageManager.instance?.currentLanguage ?: remember { mutableStateOf(com.freshveg.app.core.i18n.AppLanguage.ENGLISH) }).let {
+        if (it is kotlinx.coroutines.flow.StateFlow<*>) (it as kotlinx.coroutines.flow.StateFlow<com.freshveg.app.core.i18n.AppLanguage>).collectAsState() else remember { mutableStateOf(com.freshveg.app.core.i18n.AppLanguage.ENGLISH) }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Color.White
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val locale = remember(currentLang) { java.util.Locale(currentLang.code) }
+        val configuration = remember(currentLang, locale) {
+            val conf = android.content.res.Configuration(context.resources.configuration)
+            conf.setLocale(locale)
+            conf.setLayoutDirection(locale)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                conf.setLocales(android.os.LocaleList(locale))
+            }
+            conf
+        }
+        val localizedContext = remember(currentLang, locale, configuration) {
+            val configContext = context.createConfigurationContext(configuration)
+            object : android.content.ContextWrapper(context) {
+                override fun getResources(): android.content.res.Resources = configContext.resources
+                override fun getAssets(): android.content.res.AssetManager = configContext.assets
+            }
+        }
+
+        CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalConfiguration provides configuration,
+            androidx.compose.ui.platform.LocalContext provides localizedContext
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -269,13 +328,13 @@ fun BuyerOrderDetailBottomSheet(
             ) {
                 Column {
                     Text(
-                        text = "Order #${order.orderNumber.ifBlank { order.id.takeLast(6) }}",
+                        text = stringResource(R.string.orders_card_number, order.orderNumber.ifBlank { order.id.takeLast(6) }),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MainInk
                     )
                     Text(
-                        text = "Placed on ${(order.placedAt ?: order.createdAt ?: "").safeDate()}",
+                        text = stringResource(R.string.orders_placed_on, (order.placedAt ?: order.createdAt ?: "").safeDate()),
                         style = MaterialTheme.typography.bodySmall,
                         color = InkSecondary
                     )
@@ -290,7 +349,7 @@ fun BuyerOrderDetailBottomSheet(
             HorizontalDivider(color = BorderSubtle)
             Spacer(modifier = Modifier.height(10.dp))
 
-            Text("Itemized Produce & Scale Weighment:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.orders_itemized_weighment), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
             LazyColumn(
@@ -301,6 +360,9 @@ fun BuyerOrderDetailBottomSheet(
             ) {
                 items(order.items, key = { it.id }) { item ->
                     val unit = item.unitSnapshot.lowercase()
+                    val itemTitle = ProduceVisualUtils.getProduceDisplayName(item.displayName, item.hindiName)
+                    val itemSubtitle = ProduceVisualUtils.getProduceSecondaryName(item.displayName, item.hindiName)
+                    val displayUnit = ProduceVisualUtils.getUnitDisplayName(unit)
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = NeutralSurface,
@@ -322,12 +384,22 @@ fun BuyerOrderDetailBottomSheet(
                                     cornerRadius = 8.dp
                                 )
                                 Column {
-                                    Text(item.displayName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium, color = MainInk)
+                                    Text(itemTitle, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium, color = MainInk)
+                                    if (!itemSubtitle.isNullOrBlank()) {
+                                        Text(itemSubtitle, style = MaterialTheme.typography.labelSmall, color = InkSecondary)
+                                    }
                                     Text(
                                         text = if (item.deliveredQuantity != null && item.deliveredQuantity!! > 0) {
-                                            "Weighed: ${ProduceVisualUtils.formatQuantity(item.deliveredQuantity!!, unit)} (Ordered: ${ProduceVisualUtils.formatQuantity(item.quantity, unit)})"
+                                            stringResource(
+                                                R.string.orders_item_weighed_and_ordered,
+                                                ProduceVisualUtils.formatQuantity(item.deliveredQuantity!!, displayUnit),
+                                                ProduceVisualUtils.formatQuantity(item.quantity, displayUnit)
+                                            )
                                         } else {
-                                            "Ordered: ${ProduceVisualUtils.formatQuantity(item.quantity, unit)}"
+                                            stringResource(
+                                                R.string.orders_item_ordered_only,
+                                                ProduceVisualUtils.formatQuantity(item.quantity, displayUnit)
+                                            )
                                         },
                                         style = MaterialTheme.typography.labelSmall,
                                         color = if (item.deliveredQuantity != null) ActionGreen else InkSecondary
@@ -361,4 +433,5 @@ fun BuyerOrderDetailBottomSheet(
             }
         }
     }
+}
 }

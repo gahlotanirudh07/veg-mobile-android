@@ -44,6 +44,7 @@ sealed class UpdateDownloadState {
     data class UpdateAvailable(val info: UpdateInfo) : UpdateDownloadState()
     data class Downloading(val progressPercent: Int, val bytesDownloaded: Long, val totalBytes: Long) : UpdateDownloadState()
     data class ReadyToInstall(val apkFile: File) : UpdateDownloadState()
+    data class Installing(val apkFile: File) : UpdateDownloadState()
     data class Error(val message: String) : UpdateDownloadState()
     object UpToDate : UpdateDownloadState()
 }
@@ -128,12 +129,24 @@ class AppUpdateManager @Inject constructor(
             remoteAssetTimeMillis: Long = 0L,
             currentBuildTimeMillis: Long = 0L
         ): Boolean {
+            // 1. Strict Version Code check (monotonically increasing build numbers)
             if (remoteCode > currentCode && remoteCode > 0) return true
+
+            // 2. Strict Semantic Version check (e.g. 1.2.0 vs 1.1.0)
             if (compareSemanticVersions(remoteVersion, currentVersion) > 0) return true
-            if (remoteSha.isNotBlank() && currentSha.isNotBlank() && currentSha != "local" &&
-                !remoteSha.startsWith(currentSha) && !currentSha.startsWith(remoteSha)) return true
-            if (remoteAssetTimeMillis > 0 && currentBuildTimeMillis > 0 &&
-                remoteAssetTimeMillis > currentBuildTimeMillis + 60_000L) return true
+
+            // 3. If remote version code or semantic version is equal or older, never update
+            if (remoteCode in 1..currentCode && compareSemanticVersions(remoteVersion, currentVersion) <= 0) {
+                return false
+            }
+
+            // 4. Git SHA comparison (only if non-empty, non-local, and not identical)
+            if (remoteSha.isNotBlank() && currentSha.isNotBlank() && currentSha != "local" && remoteSha != "local" &&
+                !remoteSha.startsWith(currentSha) && !currentSha.startsWith(remoteSha) &&
+                compareSemanticVersions(remoteVersion, currentVersion) >= 0) {
+                return true
+            }
+
             return false
         }
 
@@ -338,7 +351,7 @@ class AppUpdateManager @Inject constructor(
                 }
             }
 
-            _updateState.value = UpdateDownloadState.ReadyToInstall(apkFile)
+            _updateState.value = UpdateDownloadState.Installing(apkFile)
             onComplete(apkFile)
             installApk(apkFile)
             Result.success(apkFile)

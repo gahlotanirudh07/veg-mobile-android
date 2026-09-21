@@ -390,6 +390,8 @@ fun SellerAccountScreen(
             onInstall = {
                 if (downloadState is UpdateDownloadState.ReadyToInstall) {
                     updateManager?.installApk((downloadState as UpdateDownloadState.ReadyToInstall).apkFile)
+                } else if (downloadState is UpdateDownloadState.Installing) {
+                    updateManager?.installApk((downloadState as UpdateDownloadState.Installing).apkFile)
                 }
             },
             onDismiss = { showUpdateDialog = false }

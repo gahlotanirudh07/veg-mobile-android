@@ -11,14 +11,14 @@ object MandiTranslationUtils {
 
     val DICTIONARY = listOf(
         // Root & Bulb Vegetables
-        ProduceTranslationEntry("Potato", "आलू", "Root Veggies", listOf("aloo", "alu", "potatoes", "jyoti")),
+        ProduceTranslationEntry("Potato", "आलू", "Root Veggies", listOf("aloo", "alu", "aalo", "aaloo", "potato", "potatoes", "jyoti")),
         ProduceTranslationEntry("Sweet Potato", "शकरकंद", "Root Veggies", listOf("shakarkand")),
-        ProduceTranslationEntry("Onion", "प्याज", "Root Veggies", listOf("pyaz", "pyaaz", "onions")),
+        ProduceTranslationEntry("Onion", "प्याज", "Root Veggies", listOf("pyaz", "pyaaz", "onion", "onions")),
         ProduceTranslationEntry("Red Onion", "लाल प्याज", "Root Veggies", listOf("lal pyaz")),
         ProduceTranslationEntry("White Onion", "सफेद प्याज", "Root Veggies", listOf("safed pyaz")),
         ProduceTranslationEntry("Spring Onion", "हरा प्याज", "Leafy Greens", listOf("hara pyaz", "scallion")),
-        ProduceTranslationEntry("Garlic", "लहसुन", "Aromatics", listOf("lahsun", "lehsun")),
-        ProduceTranslationEntry("Ginger", "अदरक", "Aromatics", listOf("adrak", "adrakh")),
+        ProduceTranslationEntry("Garlic", "लहसुन", "Aromatics", listOf("lahsun", "lehsun", "garlic")),
+        ProduceTranslationEntry("Ginger", "अदरक", "Aromatics", listOf("adrak", "adrakh", "ginger")),
         ProduceTranslationEntry("Turmeric", "कच्ची हल्दी", "Aromatics", listOf("haldi", "kacchi haldi")),
         ProduceTranslationEntry("Beetroot", "चुकंदर", "Root Veggies", listOf("chukandar", "beet")),
         ProduceTranslationEntry("Radish", "मूली", "Root Veggies", listOf("mooli", "muli")),
@@ -29,13 +29,13 @@ object MandiTranslationUtils {
         ProduceTranslationEntry("Yam / Suran", "सूरन (जिमीकंद)", "Root Veggies", listOf("suran", "jimikand")),
 
         // Fruity & Nightshade Vegetables
-        ProduceTranslationEntry("Tomato", "टमाटर", "Fruity Veggies", listOf("tamatar", "tomatoes")),
+        ProduceTranslationEntry("Tomato", "टमाटर", "Fruity Veggies", listOf("tamatar", "tomatoes", "tomato")),
         ProduceTranslationEntry("Hybrid Tomato", "हाइब्रिड टमाटर", "Fruity Veggies", listOf("hybrid tamatar")),
         ProduceTranslationEntry("Desi Tomato", "देशी टमाटर", "Fruity Veggies", listOf("desi tamatar")),
         ProduceTranslationEntry("Cherry Tomato", "चेरी टमाटर", "Exotic Veg", listOf("cherry tamatar")),
-        ProduceTranslationEntry("Brinjal / Eggplant", "बैंगन", "Fruity Veggies", listOf("baingan", "baigan", "eggplant")),
+        ProduceTranslationEntry("Brinjal / Eggplant", "बैंगन", "Fruity Veggies", listOf("baingan", "baigan", "eggplant", "brinjal")),
         ProduceTranslationEntry("Long Brinjal", "लंबा बैंगन", "Fruity Veggies", listOf("lamba baingan")),
-        ProduceTranslationEntry("Bharta Brinjal", "भरता बैंगन", "Fruity Veggies", listOf("bharta baingan", "gol baingan")),
+        ProduceTranslationEntry("Bharta Brinjal", "भरता बैंगन", "Fruity Veggies", listOf("bharta baingan", "gol baingan", "bharta", "bharta baigan")),
         ProduceTranslationEntry("Capsicum", "शिमला मिर्च", "Fruity Veggies", listOf("shimla mirch", "capsicum", "bell pepper")),
         ProduceTranslationEntry("Green Chilli", "हरी मिर्च", "Aromatics", listOf("hari mirch", "green chilli", "chili")),
         ProduceTranslationEntry("Spicy Green Chilli", "तीखी हरी मिर्च", "Aromatics", listOf("teekhi mirch")),

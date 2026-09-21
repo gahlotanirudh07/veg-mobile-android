@@ -254,6 +254,8 @@ fun AppNavigation(
                 onInstall = {
                     if (updateState is com.freshveg.app.core.update.UpdateDownloadState.ReadyToInstall) {
                         updateManager?.installApk((updateState as com.freshveg.app.core.update.UpdateDownloadState.ReadyToInstall).apkFile)
+                    } else if (updateState is com.freshveg.app.core.update.UpdateDownloadState.Installing) {
+                        updateManager?.installApk((updateState as com.freshveg.app.core.update.UpdateDownloadState.Installing).apkFile)
                     }
                 },
                 onDismiss = {
@@ -261,6 +263,7 @@ fun AppNavigation(
                 }
             )
         } else if (updateState is com.freshveg.app.core.update.UpdateDownloadState.Downloading ||
+            updateState is com.freshveg.app.core.update.UpdateDownloadState.Installing ||
             updateState is com.freshveg.app.core.update.UpdateDownloadState.ReadyToInstall ||
             updateState is com.freshveg.app.core.update.UpdateDownloadState.Error) {
             val info = updateManager?.lastCheckedInfo ?: com.freshveg.app.core.update.UpdateInfo(isUpdateAvailable = true)
@@ -275,6 +278,8 @@ fun AppNavigation(
                 onInstall = {
                     if (updateState is com.freshveg.app.core.update.UpdateDownloadState.ReadyToInstall) {
                         updateManager?.installApk((updateState as com.freshveg.app.core.update.UpdateDownloadState.ReadyToInstall).apkFile)
+                    } else if (updateState is com.freshveg.app.core.update.UpdateDownloadState.Installing) {
+                        updateManager?.installApk((updateState as com.freshveg.app.core.update.UpdateDownloadState.Installing).apkFile)
                     }
                 },
                 onDismiss = {

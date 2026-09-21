@@ -18,16 +18,19 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -67,6 +70,20 @@ fun BuyerCatalogueScreen(
         if (it is StateFlow<*>) (it as StateFlow<AppLanguage>).collectAsState() else remember { mutableStateOf(AppLanguage.ENGLISH) }
     }
 
+    val pullToRefreshState = rememberPullToRefreshState()
+    if (pullToRefreshState.isRefreshing) {
+        LaunchedEffect(true) {
+            viewModel.refresh()
+        }
+    }
+    LaunchedEffect(state.isRefreshing) {
+        if (state.isRefreshing) {
+            pullToRefreshState.startRefresh()
+        } else {
+            pullToRefreshState.endRefresh()
+        }
+    }
+
     LaunchedEffect(state.orderSuccessDto) {
         state.orderSuccessDto?.let {
             snackbarHostState.showSnackbar(
@@ -89,7 +106,7 @@ fun BuyerCatalogueScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = SecondarySurface,
+        containerColor = CatalogueCanvas,
         bottomBar = {
             AnimatedVisibility(
                 visible = state.cartItemCount > 0,
@@ -105,15 +122,15 @@ fun BuyerCatalogueScreen(
                 ) {
                     ElevatedCard(
                         onClick = { viewModel.openCart() },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = ActionGreen),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = BrandGreenPrimary),
+                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .padding(horizontal = 16.dp, vertical = 11.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -123,7 +140,7 @@ fun BuyerCatalogueScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .size(34.dp)
                                         .clip(CircleShape)
                                         .background(Color.White.copy(alpha = 0.2f)),
                                     contentAlignment = Alignment.Center
@@ -132,22 +149,26 @@ fun BuyerCatalogueScreen(
                                         imageVector = Icons.Outlined.ShoppingCart,
                                         contentDescription = "Cart",
                                         tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
 
                                 Column {
                                     Text(
                                         text = stringResource(R.string.buyer_cart_items_count, state.cartItemCount),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
+                                        style = CatalogueTypography.buttonChip,
                                         color = Color.White
                                     )
                                     Text(
-                                        text = "Estimated: ${ProduceVisualUtils.formatCurrency(state.cartEstimatedTotal)}",
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 12.sp,
-                                        color = Color.White.copy(alpha = 0.9f)
+                                        text = stringResource(
+                                            R.string.buyer_cart_total,
+                                            ProduceVisualUtils.formatCurrency(state.cartEstimatedTotal).replace("₹", "").trim()
+                                        ),
+                                        style = CatalogueTypography.buttonChip.copy(
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
+                                        ),
+                                        color = Color.White
                                     )
                                 }
                             }
@@ -158,12 +179,11 @@ fun BuyerCatalogueScreen(
                             ) {
                                 Text(
                                     text = stringResource(R.string.buyer_cart_bar_title),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
+                                    style = CatalogueTypography.buttonChip,
                                     color = Color.White
                                 )
                                 Icon(
-                                    imageVector = Icons.Default.ArrowForward,
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                     contentDescription = null,
                                     tint = Color.White,
                                     modifier = Modifier.size(16.dp)
@@ -179,6 +199,7 @@ fun BuyerCatalogueScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .nestedScroll(pullToRefreshState.nestedScrollConnection)
         ) {
             LazyColumn(
                 modifier = Modifier
@@ -186,10 +207,11 @@ fun BuyerCatalogueScreen(
                     .imePadding(),
                 contentPadding = PaddingValues(bottom = if (state.cartItemCount > 0) 80.dp else 16.dp)
             ) {
-                // Top Header with Supplier & Language Switch
+                // Top Header Card: Title, Supplier Subtitle, Language Switch, Subtle Delivery Strip & Compact Search Bar
                 item {
                     Surface(
-                        color = Color.White,
+                        color = ProductCardSurface,
+                        border = BorderStroke(1.dp, ProductCardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -197,6 +219,7 @@ fun BuyerCatalogueScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
+                            // Row: Screen Title & Language Switcher
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -205,24 +228,24 @@ fun BuyerCatalogueScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = stringResource(R.string.nav_catalogue),
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MainInk
+                                        style = CatalogueTypography.screenTitle
                                     )
                                     state.connectedSeller?.let { seller ->
                                         Text(
                                             text = stringResource(R.string.buyer_supplier_info, seller.businessName.ifBlank { seller.primaryContactName ?: "Supplier" }),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = ActionGreen
+                                            style = CatalogueTypography.secondaryInfo,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                 }
 
-                                // Language Toggle Chip
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                // Language Toggle Pill (No emoji, Material vector icon, compact 30dp height)
                                 Surface(
-                                    shape = RoundedCornerShape(20.dp),
-                                    color = SecondarySurface,
+                                    shape = RoundedCornerShape(50),
+                                    color = SurfaceMuted,
                                     border = BorderStroke(1.dp, BorderSubtle),
                                     modifier = Modifier.clickable {
                                         LanguageManager.instance?.toggleLanguage()
@@ -231,94 +254,132 @@ fun BuyerCatalogueScreen(
                                     Row(
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                                     ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Translate,
+                                            contentDescription = "Language",
+                                            tint = InkSecondary,
+                                            modifier = Modifier.size(13.dp)
+                                        )
                                         Text(
-                                            text = if (currentLang == AppLanguage.HINDI) "🇮🇳 हिन्दी" else "🇬🇧 EN",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp,
-                                            color = MainInk
+                                            text = if (currentLang == AppLanguage.HINDI) "हिन्दी" else "English",
+                                            style = CatalogueTypography.buttonCompact,
+                                            color = InkPrimary
                                         )
                                     }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                            // Cutoff Warning Banner
+                            // Delivery Information Banner: Subtle informational strip with soft sage tint
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFFFFF8E1),
-                                border = BorderStroke(0.5.dp, Color(0xFFFFE082)),
+                                color = BrandGreenSurface,
+                                border = BorderStroke(0.75.dp, BrandGreenBorder),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Schedule,
+                                        contentDescription = null,
+                                        tint = BrandGreenPrimary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
                                     Text(
                                         text = stringResource(R.string.buyer_order_cutoff, state.cutoffTime),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFE65100)
+                                        style = CatalogueTypography.secondaryInfo.copy(
+                                            fontSize = 12.sp,
+                                            lineHeight = 16.sp
+                                        ),
+                                        color = InkPrimary
                                     )
                                 }
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // Search Field
-                            OutlinedTextField(
-                                value = state.searchQuery,
-                                onValueChange = { viewModel.onSearchQueryChange(it) },
-                                placeholder = {
-                                    Text(
-                                        text = stringResource(R.string.buyer_search_produce),
-                                        fontSize = 13.5.sp,
-                                        color = InkTertiary
-                                    )
-                                },
-                                leadingIcon = {
+                            // Compact Search Bar: 42dp height, soft surface, restrained border
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = SurfaceMuted,
+                                border = BorderStroke(1.dp, BorderSubtle),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(42.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
                                     Icon(
                                         imageVector = Icons.Outlined.Search,
                                         contentDescription = "Search",
-                                        tint = InkSecondary
+                                        tint = InkSecondary,
+                                        modifier = Modifier.size(18.dp)
                                     )
-                                },
-                                trailingIcon = {
+
+                                    Box(
+                                        modifier = Modifier.weight(1f),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        if (state.searchQuery.isEmpty()) {
+                                            Text(
+                                                text = stringResource(R.string.buyer_search_produce),
+                                                style = CatalogueTypography.searchPlaceholder
+                                            )
+                                        }
+                                        BasicTextField(
+                                            value = state.searchQuery,
+                                            onValueChange = { viewModel.onSearchQueryChange(it) },
+                                            singleLine = true,
+                                            textStyle = TextStyle(
+                                                fontFamily = AppFontFamily,
+                                                fontSize = 13.5.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = InkPrimary
+                                            ),
+                                            cursorBrush = SolidColor(BrandGreenPrimary),
+                                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+
                                     if (state.searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                        IconButton(
+                                            onClick = { viewModel.onSearchQueryChange("") },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
                                             Icon(
-                                                imageVector = Icons.Default.Close,
+                                                imageVector = Icons.Outlined.Close,
                                                 contentDescription = "Clear",
                                                 tint = InkSecondary,
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(16.dp)
                                             )
                                         }
                                     }
-                                },
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = ActionGreen,
-                                    unfocusedBorderColor = BorderSubtle,
-                                    focusedContainerColor = SecondarySurface,
-                                    unfocusedContainerColor = SecondarySurface
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                                }
+                            }
                         }
                     }
                 }
 
-                // Category Chips Row
+                // Category Chips Row: 36dp pill shape, intentional partial-next-chip peek
                 item {
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White)
-                            .padding(vertical = 8.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
+                            .background(CatalogueCanvas)
+                            .padding(vertical = 10.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 24.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         item {
@@ -330,7 +391,7 @@ fun BuyerCatalogueScreen(
                         }
                         items(state.categories, key = { it.id }) { cat ->
                             CategoryFilterChip(
-                                title = cat.name,
+                                title = ProduceVisualUtils.getCategoryDisplayName(cat.name, isHindi = (currentLang == AppLanguage.HINDI)),
                                 isSelected = state.selectedCategoryId == cat.id,
                                 onClick = { viewModel.selectCategory(cat.id) }
                             )
@@ -344,66 +405,73 @@ fun BuyerCatalogueScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            color = Color(0xFFE8F5E9),
-                            border = BorderStroke(1.dp, ActionGreen.copy(alpha = 0.3f))
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = BrandGreenSurface,
+                            border = BorderStroke(1.dp, BrandGreenBorder)
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(12.dp),
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = stringResource(R.string.buyer_frequent_reorder),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        color = MainInk
+                                        style = CatalogueTypography.buttonChip,
+                                        color = InkPrimary
                                     )
                                     Text(
-                                        text = "${state.lastOrder?.items?.size ?: 0} items from previous delivery",
-                                        fontSize = 11.5.sp,
-                                        color = InkSecondary
+                                        text = stringResource(R.string.buyer_frequent_items_count, state.lastOrder?.items?.size ?: 0),
+                                        style = CatalogueTypography.secondaryInfo
                                     )
                                 }
 
                                 Button(
                                     onClick = { viewModel.reorderAllFromLastOrder() },
-                                    colors = ButtonDefaults.buttonColors(containerColor = ActionGreen),
-                                    shape = RoundedCornerShape(10.dp),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                    colors = ButtonDefaults.buttonColors(containerColor = BrandGreenPrimary),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.height(32.dp)
                                 ) {
-                                    Text("Reorder All", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = stringResource(R.string.buyer_reorder_all),
+                                        style = CatalogueTypography.buttonCompact,
+                                        color = Color.White
+                                    )
                                 }
                             }
                         }
                     }
                 }
 
-                // Loading Shimmer Skeletons
+                // Loading Shimmer Skeletons or Product List
                 if (state.isLoading && state.products.isEmpty()) {
                     items(6) {
-                        ProduceRowSkeleton(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+                        ProduceRowSkeleton(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                     }
                 } else if (state.filteredProducts.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(40.dp),
+                                .padding(48.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("🥬", fontSize = 48.sp)
+                                Icon(
+                                    imageVector = Icons.Outlined.Spa,
+                                    contentDescription = null,
+                                    tint = InkTertiary,
+                                    modifier = Modifier.size(44.dp)
+                                )
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Text(
                                     text = stringResource(R.string.common_no_data),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MainInk
+                                    style = CatalogueTypography.sectionTitle,
+                                    color = InkPrimary
                                 )
                             }
                         }
@@ -414,14 +482,22 @@ fun BuyerCatalogueScreen(
                         ModernWholesaleProduceCard(
                             product = product,
                             quantityInCart = qtyInCart,
+                            isHindi = (currentLang == AppLanguage.HINDI),
                             onQuantityChanged = { newQty -> viewModel.setQuantity(product.id, newQty) },
                             onIncrement = { viewModel.incrementQuantity(product) },
                             onDecrement = { viewModel.decrementQuantity(product) },
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                         )
                     }
                 }
             }
+
+            PullToRefreshContainer(
+                state = pullToRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter),
+                containerColor = Color.White,
+                contentColor = BrandGreenPrimary
+            )
         }
     }
 
@@ -439,6 +515,11 @@ fun BuyerCatalogueScreen(
     }
 }
 
+/**
+ * Compact 36dp pill shape category filter chip.
+ * Selected: BrandGreenPrimary with white text.
+ * Unselected: White surface with subtle 1dp border and charcoal/grey-green text.
+ */
 @Composable
 fun CategoryFilterChip(
     title: String,
@@ -446,36 +527,51 @@ fun CategoryFilterChip(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = if (isSelected) ActionGreen else NeutralSurface,
-        border = BorderStroke(1.dp, if (isSelected) ActionGreen else BorderSubtle),
-        modifier = Modifier.bounceClick(onClick = onClick)
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        color = if (isSelected) BrandGreenPrimary else ProductCardSurface,
+        border = BorderStroke(1.dp, if (isSelected) BrandGreenPrimary else BorderSubtle),
+        modifier = Modifier
+            .height(36.dp)
+            .bounceClick(onClick = onClick)
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSelected) Color.White else MainInk,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
-        )
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 14.dp)
+                .fillMaxHeight(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = title,
+                style = CatalogueTypography.buttonChip,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (isSelected) Color.White else InkPrimary
+            )
+        }
     }
 }
 
 /**
- * Modern Wholesale Produce Card (Blinkit / Zepto Layout)
- * Right-aligned SVG badge, direct numeric typing, quick wholesale steppers (+0.5, +1, +5, +10 kg).
+ * Compact Modern Wholesale Produce Card
+ * - 14dp radius, white product surface, 1dp subtle border, 0dp shadow.
+ * - Standardized 60dp uniform imagery badge with minimal inner padding.
+ * - Clean typography hierarchy: 16sp semibold title, 12.5sp secondary, 18sp bold price.
+ * - Compact 34dp Add button and Stepper with 48dp minimum touch target area.
+ * - Quick wholesale increment steppers (+0.5 kg, +1 kg, +5 kg, +10 kg) in 26dp pill chips.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ModernWholesaleProduceCard(
     product: ProductDto,
     quantityInCart: Double,
+    isHindi: Boolean = false,
     onQuantityChanged: (Double) -> Unit,
     onIncrement: () -> Unit,
     onDecrement: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val unitName = product.unitType.name.lowercase()
+    val displayUnit = ProduceVisualUtils.getUnitDisplayName(unitName, isHindi = isHindi)
     val hindiName = product.hindiName ?: MandiTranslationUtils.translateEnglishToHindi(product.safeName)
     val view = LocalView.current
     val focusManager = LocalFocusManager.current
@@ -494,42 +590,42 @@ fun ModernWholesaleProduceCard(
         modifier = modifier
             .fillMaxWidth()
             .bringIntoViewRequester(bringIntoViewRequester),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        border = BorderStroke(0.75.dp, BorderSubtle)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = ProductCardSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, ProductCardBorder)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left Column: Produce Info & Pricing
+                // Left Column: Produce Titles & Pricing
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    val displayName = ProduceVisualUtils.getProduceDisplayName(product.safeName, hindiName)
+                    val displayName = ProduceVisualUtils.getProduceDisplayName(product.safeName, hindiName, isHindi = isHindi)
+                    val secondaryName = ProduceVisualUtils.getProduceSecondaryName(product.safeName, hindiName, isHindi = isHindi)
+
                     Text(
                         text = displayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MainInk,
+                        style = CatalogueTypography.productTitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    if (!hindiName.isNullOrBlank()) {
+                    if (!secondaryName.isNullOrBlank()) {
                         Text(
-                            text = hindiName,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = InkSecondary
+                            text = secondaryName,
+                            style = CatalogueTypography.secondaryInfo,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -540,35 +636,40 @@ fun ModernWholesaleProduceCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(
-                            text = "₹${product.effectivePrice.toInt()}/$unitName",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = ActionGreen
-                        )
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = "₹${product.effectivePrice.toInt()}",
+                                style = CatalogueTypography.priceLarge
+                            )
+                            Text(
+                                text = "/$displayUnit",
+                                style = CatalogueTypography.priceUnit
+                            )
+                        }
 
                         val origBasePrice = product.basePrice
                         if (origBasePrice != null && origBasePrice > product.effectivePrice) {
                             Text(
                                 text = "₹${origBasePrice.toInt()}",
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    textDecoration = TextDecoration.LineThrough
+                                style = CatalogueTypography.secondaryInfo.copy(
+                                    textDecoration = TextDecoration.LineThrough,
+                                    fontSize = 12.sp
                                 ),
-                                color = InkTertiary,
-                                fontWeight = FontWeight.Medium
+                                color = InkTertiary
                             )
                         }
 
                         if ((product.discountAmountPerUnit ?: 0.0) > 0.0) {
                             Surface(
-                                color = ActionGreen.copy(alpha = 0.12f),
-                                shape = RoundedCornerShape(4.dp)
+                                color = BrandGreenSurface,
+                                shape = RoundedCornerShape(4.dp),
+                                border = BorderStroke(0.5.dp, BrandGreenBorder)
                             ) {
+                                val discountText = if (product.discountType == "PERCENTAGE") "${product.discountValue?.toInt()}%" else "₹${product.discountValue?.toInt() ?: product.discountAmountPerUnit?.toInt()}"
                                 Text(
-                                    text = if (product.discountType == "PERCENTAGE") "${product.discountValue?.toInt()}% OFF" else "₹${product.discountValue?.toInt() ?: product.discountAmountPerUnit?.toInt()} OFF",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = ActionGreen,
+                                    text = stringResource(R.string.buyer_discount_off, discountText),
+                                    style = CatalogueTypography.microBadge,
+                                    color = BrandGreenPrimary,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                 )
                             }
@@ -576,137 +677,151 @@ fun ModernWholesaleProduceCard(
                     }
                 }
 
-                // Right Column: Artwork Badge + Stepper Action
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Right Column: Standardized 60dp Produce Artwork Badge + Compact Stepper Action
                 Column(
                     horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     ProduceThumbnailBadge(
                         name = product.safeName,
                         hindiName = hindiName,
                         imageUrl = product.imageUrl,
-                        size = 64.dp,
-                        cornerRadius = 12.dp
+                        size = 60.dp,
+                        cornerRadius = 10.dp
                     )
 
-                    // Add Button or Numeric Input Stepper
+                    // Add Button or Numeric Input Stepper (with 48dp minimum touch target bounding)
                     if (quantityInCart == 0.0) {
                         Button(
                             onClick = {
                                 triggerHaptic()
                                 onIncrement()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = ActionGreen),
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandGreenPrimary),
                             shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                             modifier = Modifier
-                                .height(38.dp)
+                                .height(34.dp)
                                 .bounceClick {
                                     triggerHaptic()
                                     onIncrement()
                                 }
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Icons.Outlined.Add,
                                 contentDescription = null,
-                                modifier = Modifier.size(15.dp)
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(stringResource(R.string.buyer_add_to_cart), fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.buyer_add_to_cart),
+                                style = CatalogueTypography.buttonCompact,
+                                color = Color.White
+                            )
                         }
                     } else {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = NeutralSurface,
-                            border = BorderStroke(1.dp, ActionGreen.copy(alpha = 0.5f))
+                        Box(
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                            contentAlignment = Alignment.CenterEnd
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                modifier = Modifier.padding(2.dp)
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = ProductCardSurface,
+                                border = BorderStroke(1.dp, BrandGreenBorder)
                             ) {
-                                IconButton(
-                                    onClick = {
-                                        triggerHaptic()
-                                        onDecrement()
-                                    },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Remove,
-                                        contentDescription = "Decrease",
-                                        tint = MainInk,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-
-                                // Direct Numeric Editable Text Box
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = Color.White,
-                                    border = BorderStroke(0.75.dp, BorderSubtle),
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
-                                        .width(52.dp)
-                                        .height(28.dp)
+                                        .height(32.dp)
+                                        .padding(horizontal = 2.dp)
                                 ) {
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier.fillMaxSize()
+                                    IconButton(
+                                        onClick = {
+                                            triggerHaptic()
+                                            onDecrement()
+                                        },
+                                        modifier = Modifier.size(32.dp)
                                     ) {
-                                        BasicTextField(
-                                            value = textInput,
-                                            onValueChange = { newVal ->
-                                                val filtered = newVal.filter { it.isDigit() || it == '.' }
-                                                textInput = filtered
-                                                val parsed = filtered.toDoubleOrNull()
-                                                if (parsed != null && parsed >= 0) {
-                                                    onQuantityChanged(parsed)
-                                                }
-                                            },
-                                            singleLine = true,
-                                            textStyle = TextStyle(
-                                                fontSize = 12.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                textAlign = TextAlign.Center,
-                                                color = MainInk
-                                            ),
-                                            keyboardOptions = KeyboardOptions(
-                                                keyboardType = KeyboardType.Decimal,
-                                                imeAction = ImeAction.Done
-                                            ),
-                                            keyboardActions = KeyboardActions(
-                                                onDone = {
-                                                    focusManager.clearFocus()
-                                                    val parsed = textInput.toDoubleOrNull() ?: 0.0
-                                                    onQuantityChanged(parsed)
-                                                }
-                                            ),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .onFocusEvent { focusState ->
-                                                    if (focusState.isFocused) {
-                                                        coroutineScope.launch {
-                                                            bringIntoViewRequester.bringIntoView()
-                                                        }
-                                                    }
-                                                }
+                                        Icon(
+                                            imageVector = Icons.Outlined.Remove,
+                                            contentDescription = "Decrease",
+                                            tint = InkPrimary,
+                                            modifier = Modifier.size(14.dp)
                                         )
                                     }
-                                }
 
-                                IconButton(
-                                    onClick = {
-                                        triggerHaptic()
-                                        onIncrement()
-                                    },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = "Increase",
-                                        tint = ActionGreen,
-                                        modifier = Modifier.size(14.dp)
-                                    )
+                                    // Direct Numeric Editable Box
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = SurfaceMuted,
+                                        border = BorderStroke(0.75.dp, BorderSubtle),
+                                        modifier = Modifier
+                                            .width(44.dp)
+                                            .height(26.dp)
+                                    ) {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier.fillMaxSize()
+                                        ) {
+                                            BasicTextField(
+                                                value = textInput,
+                                                onValueChange = { newVal ->
+                                                    val filtered = newVal.filter { it.isDigit() || it == '.' }
+                                                    textInput = filtered
+                                                    val parsed = filtered.toDoubleOrNull()
+                                                    if (parsed != null && parsed >= 0) {
+                                                        onQuantityChanged(parsed)
+                                                    }
+                                                },
+                                                singleLine = true,
+                                                textStyle = TextStyle(
+                                                    fontFamily = AppFontFamily,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    textAlign = TextAlign.Center,
+                                                    color = InkPrimary
+                                                ),
+                                                keyboardOptions = KeyboardOptions(
+                                                    keyboardType = KeyboardType.Decimal,
+                                                    imeAction = ImeAction.Done
+                                                ),
+                                                keyboardActions = KeyboardActions(
+                                                    onDone = {
+                                                        focusManager.clearFocus()
+                                                        val parsed = textInput.toDoubleOrNull() ?: 0.0
+                                                        onQuantityChanged(parsed)
+                                                    }
+                                                ),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .onFocusEvent { focusState ->
+                                                        if (focusState.isFocused) {
+                                                            coroutineScope.launch {
+                                                                bringIntoViewRequester.bringIntoView()
+                                                            }
+                                                        }
+                                                    }
+                                            )
+                                        }
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            triggerHaptic()
+                                            onIncrement()
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Add,
+                                            contentDescription = "Increase",
+                                            tint = BrandGreenPrimary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -716,7 +831,7 @@ fun ModernWholesaleProduceCard(
 
             // Quick Wholesale Increment Steppers (+0.5 kg, +1 kg, +5 kg, +10 kg)
             if (quantityInCart > 0.0) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -724,21 +839,20 @@ fun ModernWholesaleProduceCard(
                 ) {
                     listOf(0.5, 1.0, 5.0, 10.0).forEach { quickQty ->
                         Surface(
+                            onClick = {
+                                triggerHaptic()
+                                onQuantityChanged(quantityInCart + quickQty)
+                            },
                             shape = RoundedCornerShape(6.dp),
-                            color = SecondarySurface,
+                            color = SurfaceMuted,
                             border = BorderStroke(0.5.dp, BorderSubtle),
                             modifier = Modifier
                                 .padding(horizontal = 2.dp)
-                                .bounceClick {
-                                    triggerHaptic()
-                                    onQuantityChanged(quantityInCart + quickQty)
-                                }
                         ) {
                             Text(
-                                text = "+${ProduceVisualUtils.formatQuantityValue(quickQty)} $unitName",
-                                color = ActionGreen,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
+                                text = "+${ProduceVisualUtils.formatQuantityValue(quickQty)} $displayUnit",
+                                color = BrandGreenPrimary,
+                                style = CatalogueTypography.microBadge,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                             )
                         }
@@ -755,31 +869,25 @@ fun ProduceRowSkeleton(modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(80.dp),
+            .height(74.dp),
         shape = RoundedCornerShape(14.dp),
-        color = NeutralSurface,
-        border = BorderStroke(1.dp, BorderSubtle)
+        color = ProductCardSurface,
+        border = BorderStroke(1.dp, ProductCardBorder)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(shimmerBrush)
-            )
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .width(120.dp)
+                        .width(130.dp)
                         .height(14.dp)
                         .clip(RoundedCornerShape(4.dp))
                         .background(shimmerBrush)
@@ -791,12 +899,18 @@ fun ProduceRowSkeleton(modifier: Modifier = Modifier) {
                         .clip(RoundedCornerShape(4.dp))
                         .background(shimmerBrush)
                 )
+                Box(
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(shimmerBrush)
+                )
             }
             Box(
                 modifier = Modifier
-                    .width(70.dp)
-                    .height(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(54.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(shimmerBrush)
             )
         }

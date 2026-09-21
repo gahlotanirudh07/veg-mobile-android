@@ -69,38 +69,65 @@ fun BuyerCartBottomSheet(
         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
     }
 
+    val currentLang by (com.freshveg.app.core.i18n.LanguageManager.instance?.currentLanguage ?: remember { mutableStateOf(com.freshveg.app.core.i18n.AppLanguage.ENGLISH) }).let {
+        if (it is kotlinx.coroutines.flow.StateFlow<*>) (it as kotlinx.coroutines.flow.StateFlow<com.freshveg.app.core.i18n.AppLanguage>).collectAsState() else remember { mutableStateOf(com.freshveg.app.core.i18n.AppLanguage.ENGLISH) }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Color.White,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val locale = remember(currentLang) { java.util.Locale(currentLang.code) }
+        val configuration = remember(currentLang, locale) {
+            val conf = android.content.res.Configuration(context.resources.configuration)
+            conf.setLocale(locale)
+            conf.setLayoutDirection(locale)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                conf.setLocales(android.os.LocaleList(locale))
+            }
+            conf
+        }
+        val localizedContext = remember(currentLang, locale, configuration) {
+            val configContext = context.createConfigurationContext(configuration)
+            object : android.content.ContextWrapper(context) {
+                override fun getResources(): android.content.res.Resources = configContext.resources
+                override fun getAssets(): android.content.res.AssetManager = configContext.assets
+            }
+        }
+
+        CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalConfiguration provides configuration,
+            androidx.compose.ui.platform.LocalContext provides localizedContext
         ) {
-            // Header Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Column {
-                    Text(
-                        text = stringResource(R.string.buyer_cart_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MainInk
-                    )
-                    Text(
-                        text = stringResource(R.string.buyer_cart_items_count, cartItems.size),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = InkSecondary
-                    )
-                }
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.buyer_cart_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MainInk
+                        )
+                        Text(
+                            text = stringResource(R.string.buyer_cart_items_count, cartItems.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = InkSecondary
+                        )
+                    }
 
                 if (cartItems.isNotEmpty()) {
                     TextButton(
@@ -155,7 +182,11 @@ fun BuyerCartBottomSheet(
                     items(cartItems, key = { it.product.id }) { item ->
                         val product = item.product
                         val unitName = product.unitType.name.lowercase()
+                        val isHindi = currentLang == com.freshveg.app.core.i18n.AppLanguage.HINDI
                         val hindiName = product.hindiName ?: MandiTranslationUtils.translateEnglishToHindi(product.safeName)
+                        val displayName = ProduceVisualUtils.getProduceDisplayName(product.safeName, hindiName, isHindi)
+                        val secondaryName = ProduceVisualUtils.getProduceSecondaryName(product.safeName, hindiName, isHindi)
+                        val displayUnit = ProduceVisualUtils.getUnitDisplayName(unitName, isHindi)
                         var textInput by remember(item.quantity) {
                             mutableStateOf(ProduceVisualUtils.formatQuantityValue(item.quantity))
                         }
@@ -184,20 +215,20 @@ fun BuyerCartBottomSheet(
 
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = product.safeName,
+                                        text = displayName,
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MainInk
                                     )
-                                    if (!hindiName.isNullOrBlank()) {
+                                    if (!secondaryName.isNullOrBlank()) {
                                         Text(
-                                            text = hindiName,
+                                            text = secondaryName,
                                             style = MaterialTheme.typography.labelSmall,
                                             color = InkSecondary
                                         )
                                     }
                                     Text(
-                                        text = "₹${product.effectivePrice.toInt()}/$unitName",
+                                        text = "₹${product.effectivePrice.toInt()}/$displayUnit",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.SemiBold,
                                         color = ActionGreen
@@ -335,7 +366,7 @@ fun BuyerCartBottomSheet(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Standard delivery tomorrow 05:00 AM – 07:00 AM. Final billing computed upon mandi weighment.",
+                        text = stringResource(R.string.buyer_cart_delivery_notice),
                         style = MaterialTheme.typography.labelSmall,
                         color = InkSecondary,
                         fontSize = 11.sp
@@ -350,7 +381,7 @@ fun BuyerCartBottomSheet(
                 value = deliveryNotes,
                 onValueChange = { deliveryNotes = it },
                 label = { Text(stringResource(R.string.buyer_cart_note)) },
-                placeholder = { Text("e.g. Clean spinach, small onions") },
+                placeholder = { Text(stringResource(R.string.buyer_cart_note_placeholder)) },
                 singleLine = true,
                 shape = RoundedCornerShape(10.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -373,7 +404,7 @@ fun BuyerCartBottomSheet(
                 Column {
                     if (totalSavings > 0.0) {
                         Text(
-                            text = "Savings: -${ProduceVisualUtils.formatCurrency(totalSavings)}",
+                            text = stringResource(R.string.buyer_cart_savings, ProduceVisualUtils.formatCurrency(totalSavings)),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = ActionGreen
@@ -427,4 +458,5 @@ fun BuyerCartBottomSheet(
             }
         }
     }
+}
 }

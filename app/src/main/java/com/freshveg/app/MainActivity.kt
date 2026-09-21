@@ -7,9 +7,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.freshveg.app.core.datastore.SessionManager
@@ -22,6 +29,7 @@ import com.freshveg.app.navigation.AppNavigation
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.util.Locale
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -45,6 +53,21 @@ class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ -> }
+
+    override fun attachBaseContext(newBase: android.content.Context) {
+        val prefs = newBase.getSharedPreferences("language_prefs", android.content.Context.MODE_PRIVATE)
+        val langCode = prefs.getString("app_language_code", "en") ?: "en"
+        val locale = java.util.Locale(langCode)
+        java.util.Locale.setDefault(locale)
+        val config = android.content.res.Configuration(newBase.resources.configuration)
+        config.setLocale(locale)
+        config.setLayoutDirection(locale)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            config.setLocales(android.os.LocaleList(locale))
+        }
+        val localizedContext = newBase.createConfigurationContext(config)
+        super.attachBaseContext(localizedContext)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,16 +95,47 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            FreshVegTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = BackgroundSurface
-                ) {
-                    AppNavigation(
-                        sessionManager = sessionManager,
-                        apiService = apiService,
-                        updateManager = updateManager
-                    )
+            val currentLang by languageManager.currentLanguage.collectAsState()
+            val context = LocalContext.current
+            val locale = remember(currentLang) { Locale(currentLang.code) }
+            val configuration = remember(currentLang, locale) {
+                val conf = Configuration(context.resources.configuration)
+                conf.setLocale(locale)
+                conf.setLayoutDirection(locale)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    val localeList = android.os.LocaleList(locale)
+                    conf.setLocales(localeList)
+                }
+                conf
+            }
+            val localizedContext = remember(currentLang, locale, configuration) {
+                val configContext = context.createConfigurationContext(configuration)
+                object : android.content.ContextWrapper(context) {
+                    override fun getResources(): android.content.res.Resources = configContext.resources
+                    override fun getAssets(): android.content.res.AssetManager = configContext.assets
+                }
+            }
+
+            androidx.compose.runtime.LaunchedEffect(configuration) {
+                @Suppress("DEPRECATION")
+                resources.updateConfiguration(configuration, resources.displayMetrics)
+            }
+
+            CompositionLocalProvider(
+                LocalConfiguration provides configuration,
+                LocalContext provides localizedContext
+            ) {
+                FreshVegTheme {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = BackgroundSurface
+                    ) {
+                        AppNavigation(
+                            sessionManager = sessionManager,
+                            apiService = apiService,
+                            updateManager = updateManager
+                        )
+                    }
                 }
             }
         }
@@ -105,6 +159,11 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         triggerDatabaseWarmup()
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                updateManager.checkForUpdates()
+            } catch (_: Exception) {}
+        }
     }
 
     override fun onDestroy() {

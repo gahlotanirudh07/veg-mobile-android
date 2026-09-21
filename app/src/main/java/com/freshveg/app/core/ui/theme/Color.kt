@@ -2,30 +2,44 @@ package com.freshveg.app.core.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Premium Market Operations Design System Tokens
-val BackgroundCanvas = Color(0xFFFBFBF9)
-val MainInk = Color(0xFF153C28)
-val ActionGreen = Color(0xFF2E9B45)
-val HarvestLime = Color(0xFFDDF06A)
+// Warm Canvas & Product Surfaces
+val CatalogueCanvas = Color(0xFFF8F9F6)          // Clean warm off-white / very-light neutral background
+val ProductCardSurface = Color(0xFFFFFFFF)       // Pure white product surface
+val ProductCardBorder = Color(0xFFE5E9E2)        // Extremely subtle 1dp border
+val SurfaceMuted = Color(0xFFF1F4F0)             // Subtle light-neutral surface (search bar, chips, steppers)
+val BorderSubtle = Color(0xFFE2E6DF)             // Subtle neutral border
+
+// Strict Green Design System (1 Primary, 1 Dark, Subtle Light-Green Surfaces)
+val BrandGreenPrimary = Color(0xFF1E8344)        // One Primary Green (crisp, professional commerce green)
+val BrandGreenDark = Color(0xFF0F3B20)           // One Dark Green (deep botanical accent)
+val BrandGreenSurface = Color(0xFFEFF7F1)        // Subtle light-green surface (badges, cart banner, active states)
+val BrandGreenBorder = Color(0xFFCCE8D4)         // Subtle green border token
+
+// Text & Ink Tokens (Charcoal & Restrained Grey-Green)
+val InkPrimary = Color(0xFF16251C)               // Primary text: dark green/charcoal rather than pure black
+val InkSecondary = Color(0xFF5A6E63)             // Secondary text: restrained grey-green
+val InkTertiary = Color(0xFF8A9A90)              // Tertiary text: subtle placeholder / disabled
+
+// System & Warning Tokens
 val AmberWarning = Color(0xFFD97706)
 val MutedRedError = Color(0xFFDC2626)
-val NeutralSurface = Color(0xFFFFFFFF)
-val SecondarySurface = Color(0xFFF4F4F0)
-val BorderSubtle = Color(0xFFE5E7EB)
-
-// Secondary & Auxiliary Ink Colors
-val InkSecondary = Color(0xFF5A6E60)
-val InkTertiary = Color(0xFF88998C)
+val NeutralSurface = ProductCardSurface
+val SecondarySurface = CatalogueCanvas
+val HarvestLime = Color(0xFFDDF06A)
 
 // Backward Compatibility Aliases
-val ForestGreenPrimary = MainInk
-val FarmGreenSecondary = ActionGreen
-val MintGreenTertiary = ActionGreen
-val LightMintAccent = Color(0xFFA5D6A7)
-val BackgroundSurface = BackgroundCanvas
-val CardSurface = NeutralSurface
-val TextPrimary = MainInk
+val BackgroundCanvas = CatalogueCanvas
+val MainInk = InkPrimary
+val ActionGreen = BrandGreenPrimary
+val ForestGreenPrimary = BrandGreenDark
+val FarmGreenSecondary = BrandGreenPrimary
+val MintGreenTertiary = BrandGreenPrimary
+val LightMintAccent = BrandGreenSurface
+val BackgroundSurface = CatalogueCanvas
+val CardSurface = ProductCardSurface
+val TextPrimary = InkPrimary
 val TextSecondary = InkSecondary
 val RedError = MutedRedError
-val BorderLight = BorderSubtle
+val BorderLight = ProductCardBorder
+
 

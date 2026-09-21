@@ -29,6 +29,7 @@ data class OrdersPipelineUiState(
     val selectedOrderForFulfill: OrderDto? = null,
     val isEditCutoffOpen: Boolean = false,
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val isFulfilling: Boolean = false,
     val isGeneratingInvoice: Boolean = false,
     val errorMessage: String? = null,
@@ -139,6 +140,32 @@ class OrdersPipelineViewModel @Inject constructor(
                 if (!silent) {
                     _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Network error") }
                 }
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
+            try {
+                apiService.warmUpDatabase()
+            } catch (_: Exception) {}
+            try {
+                val res = apiService.getOrders()
+                val cutoffRes = try { apiService.getCutoffTime() } catch (_: Exception) { null }
+                if (res.isSuccessful && res.body() != null) {
+                    _uiState.update {
+                        it.copy(
+                            orders = res.body()?.orders ?: emptyList(),
+                            cutoffTime = cutoffRes?.body()?.cutoffTime ?: it.cutoffTime,
+                            isRefreshing = false
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isRefreshing = false) }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message ?: "Failed to refresh orders") }
             }
         }
     }

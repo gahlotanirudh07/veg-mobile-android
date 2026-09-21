@@ -10,8 +10,8 @@ android {
     namespace = "com.freshveg.app"
     compileSdk = 35
 
-    val appVersionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: 2
-    val appVersionName = project.findProperty("versionName")?.toString() ?: "1.1.0"
+    val appVersionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: 9999
+    val appVersionName = project.findProperty("versionName")?.toString() ?: "1.1.0-dev"
     val gitSha = project.findProperty("gitSha")?.toString() ?: "local"
 
     defaultConfig {

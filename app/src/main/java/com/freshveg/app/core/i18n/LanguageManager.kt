@@ -37,39 +37,40 @@ class LanguageManager @Inject constructor(
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val _currentLanguage = MutableStateFlow(AppLanguage.ENGLISH)
+    private val prefs = context.getSharedPreferences("language_prefs", Context.MODE_PRIVATE)
+    private val initialLangCode = prefs.getString("app_language_code", AppLanguage.ENGLISH.code) ?: AppLanguage.ENGLISH.code
+    private val _currentLanguage = MutableStateFlow(if (initialLangCode == "hi") AppLanguage.HINDI else AppLanguage.ENGLISH)
     val currentLanguage: StateFlow<AppLanguage> = _currentLanguage.asStateFlow()
 
     init {
         instance = this
+        val initialLocale = java.util.Locale(_currentLanguage.value.code)
+        java.util.Locale.setDefault(initialLocale)
         scope.launch {
             try {
-                val prefs = context.langDataStore.data.first()
-                val code = prefs[KEY_LANG] ?: AppLanguage.ENGLISH.code
+                val dsPrefs = context.langDataStore.data.first()
+                val code = dsPrefs[KEY_LANG] ?: initialLangCode
                 val lang = if (code == "hi") AppLanguage.HINDI else AppLanguage.ENGLISH
                 _currentLanguage.value = lang
-                withContext(Dispatchers.Main) {
-                    val appLocale = LocaleListCompat.forLanguageTags(lang.code)
-                    AppCompatDelegate.setApplicationLocales(appLocale)
-                }
+                val loc = java.util.Locale(lang.code)
+                java.util.Locale.setDefault(loc)
             } catch (_: Exception) {
-                _currentLanguage.value = AppLanguage.ENGLISH
+                // Keep initial value
             }
         }
     }
 
     fun setLanguage(language: AppLanguage) {
         _currentLanguage.value = language
+        val loc = java.util.Locale(language.code)
+        java.util.Locale.setDefault(loc)
+        prefs.edit().putString("app_language_code", language.code).commit()
         scope.launch {
             try {
-                context.langDataStore.edit { prefs ->
-                    prefs[KEY_LANG] = language.code
+                context.langDataStore.edit { p ->
+                    p[KEY_LANG] = language.code
                 }
             } catch (_: Exception) {}
-            withContext(Dispatchers.Main) {
-                val appLocale = LocaleListCompat.forLanguageTags(language.code)
-                AppCompatDelegate.setApplicationLocales(appLocale)
-            }
         }
     }
 

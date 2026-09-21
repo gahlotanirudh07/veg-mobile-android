@@ -33,6 +33,7 @@ import com.freshveg.app.R
 import androidx.compose.ui.res.stringResource
 import com.freshveg.app.core.network.ConnectedSellerDto
 import com.freshveg.app.core.ui.ProduceThumbnailBadge
+import com.freshveg.app.core.ui.ProduceVisualUtils
 import com.freshveg.app.core.ui.animation.bounceClick
 import com.freshveg.app.core.ui.animation.rememberTactileHaptic
 import com.freshveg.app.core.ui.theme.*
@@ -350,6 +351,9 @@ fun BuyerHomeScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
+                                val primaryName = ProduceVisualUtils.getProduceDisplayName(item.name, item.hindiName)
+                                val secondaryName = ProduceVisualUtils.getProduceSecondaryName(item.name, item.hindiName)
+                                val displayUnit = ProduceVisualUtils.getUnitDisplayName(item.unit)
                                 ProduceThumbnailBadge(
                                     name = item.name,
                                     hindiName = item.hindiName,
@@ -357,20 +361,22 @@ fun BuyerHomeScreen(
                                     cornerRadius = 12.dp
                                 )
                                 Text(
-                                    text = item.name,
+                                    text = primaryName,
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = MainInk,
                                     maxLines = 1
                                 )
+                                if (!secondaryName.isNullOrBlank()) {
+                                    Text(
+                                        text = secondaryName ?: "",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = InkSecondary,
+                                        maxLines = 1
+                                    )
+                                }
                                 Text(
-                                    text = item.hindiName,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = InkSecondary,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = "Freq: ${item.defaultQty} ${item.unit}",
+                                    text = stringResource(R.string.buyer_freq_label, item.defaultQty, displayUnit),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold,
                                     color = ActionGreen
@@ -397,7 +403,7 @@ fun BuyerHomeScreen(
                                         tint = ActionGreen
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Add", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.buyer_add_to_cart), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -452,7 +458,7 @@ fun BuyerHomeScreen(
                                     color = MainInk
                                 )
                                 Text(
-                                    text = if (activeOrdersCount > 0) "$activeOrdersCount active order in progress" else "No pending dispatch right now",
+                                    text = if (activeOrdersCount > 0) stringResource(R.string.buyer_active_orders_count, activeOrdersCount) else stringResource(R.string.buyer_no_pending_dispatch),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = InkSecondary
                                 )
@@ -477,13 +483,13 @@ fun BuyerHomeScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Received", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ActionGreen)
+                            Text(stringResource(R.string.buyer_step_received), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ActionGreen)
                             Text("→", fontSize = 11.sp, color = InkTertiary)
-                            Text("Weighed", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ActionGreen)
+                            Text(stringResource(R.string.buyer_step_weighed), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ActionGreen)
                             Text("→", fontSize = 11.sp, color = InkTertiary)
-                            Text("Invoiced", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = InkSecondary)
+                            Text(stringResource(R.string.buyer_step_invoiced), fontSize = 11.sp, fontWeight = FontWeight.Medium, color = InkSecondary)
                             Text("→", fontSize = 11.sp, color = InkTertiary)
-                            Text("Dispatched", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = InkSecondary)
+                            Text(stringResource(R.string.buyer_step_dispatched), fontSize = 11.sp, fontWeight = FontWeight.Medium, color = InkSecondary)
                         }
                     }
                 }
@@ -528,13 +534,13 @@ fun BuyerHomeScreen(
                         }
                         Column {
                             Text(
-                                text = "Khata & Running Balance",
+                                text = stringResource(R.string.buyer_khata_balance_title),
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MainInk
                             )
                             Text(
-                                text = if (outstandingDues > 0) "Outstanding Due: ₹${outstandingDues.toInt()}" else "All Invoices Settled (₹0.00)",
+                                text = if (outstandingDues > 0) stringResource(R.string.buyer_khata_outstanding, outstandingDues.toInt()) else stringResource(R.string.buyer_khata_all_settled),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (outstandingDues > 0) MutedRedError else ActionGreen
@@ -553,7 +559,7 @@ fun BuyerHomeScreen(
             // 6. Wholesale Services & App Capabilities Directory
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "Wholesale Services & Capabilities (मंडी सेवाएं)",
+                    text = stringResource(R.string.services_directory_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MainInk
@@ -588,9 +594,9 @@ fun BuyerHomeScreen(
                             ) {
                                 Icon(Icons.Filled.Storefront, contentDescription = null, tint = ActionGreen, modifier = Modifier.size(20.dp))
                             }
-                            Text("Fresh Mandi", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MainInk)
-                            Text("60+ daily wholesale produce directly from mandi", fontSize = 11.5.sp, color = InkSecondary, lineHeight = 16.sp)
-                            Text("Browse →", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = ActionGreen)
+                            Text(stringResource(R.string.services_fresh_mandi_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MainInk)
+                            Text(stringResource(R.string.services_fresh_mandi_desc), fontSize = 11.5.sp, color = InkSecondary, lineHeight = 16.sp)
+                            Text(stringResource(R.string.services_fresh_mandi_cta), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = ActionGreen)
                         }
                     }
 
@@ -619,9 +625,9 @@ fun BuyerHomeScreen(
                             ) {
                                 Icon(Icons.Default.Scale, contentDescription = null, tint = MainInk, modifier = Modifier.size(20.dp))
                             }
-                            Text("Live Weighment", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MainInk)
-                            Text("Scale weights verified before crate dispatch", fontSize = 11.5.sp, color = InkSecondary, lineHeight = 16.sp)
-                            Text("Track orders →", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = ActionGreen)
+                            Text(stringResource(R.string.services_weighment_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MainInk)
+                            Text(stringResource(R.string.services_weighment_desc), fontSize = 11.5.sp, color = InkSecondary, lineHeight = 16.sp)
+                            Text(stringResource(R.string.services_weighment_cta), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = ActionGreen)
                         }
                     }
                 }
@@ -655,9 +661,9 @@ fun BuyerHomeScreen(
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = null, tint = Color(0xFF1976D2), modifier = Modifier.size(20.dp))
                             }
-                            Text("GST Tax Bills", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MainInk)
-                            Text("Compliant tax invoices & instant PDF slips", fontSize = 11.5.sp, color = InkSecondary, lineHeight = 16.sp)
-                            Text("View bills →", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1976D2))
+                            Text(stringResource(R.string.services_invoices_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MainInk)
+                            Text(stringResource(R.string.services_invoices_desc), fontSize = 11.5.sp, color = InkSecondary, lineHeight = 16.sp)
+                            Text(stringResource(R.string.services_invoices_cta), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1976D2))
                         }
                     }
 
@@ -686,9 +692,9 @@ fun BuyerHomeScreen(
                             ) {
                                 Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = AmberWarning, modifier = Modifier.size(20.dp))
                             }
-                            Text("Khata & Ledger", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MainInk)
-                            Text("Running balance, payments & statement PDF", fontSize = 11.5.sp, color = InkSecondary, lineHeight = 16.sp)
-                            Text("View khata →", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = AmberWarning)
+                            Text(stringResource(R.string.services_khata_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MainInk)
+                            Text(stringResource(R.string.services_khata_desc), fontSize = 11.5.sp, color = InkSecondary, lineHeight = 16.sp)
+                            Text(stringResource(R.string.services_khata_cta), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = AmberWarning)
                         }
                     }
                 }
@@ -709,13 +715,13 @@ fun BuyerHomeScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Direct Wholesale Helpdesk",
+                            text = stringResource(R.string.services_helpdesk_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MainInk
                         )
                         Text(
-                            text = "Need special crates or customized grading?",
+                            text = stringResource(R.string.services_helpdesk_desc),
                             style = MaterialTheme.typography.bodyMedium,
                             color = InkSecondary
                         )

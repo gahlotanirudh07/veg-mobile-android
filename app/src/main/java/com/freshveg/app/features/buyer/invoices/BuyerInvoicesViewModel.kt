@@ -18,6 +18,7 @@ data class BuyerInvoicesUiState(
     val invoices: List<InvoiceSummaryDto> = emptyList(),
     val selectedInvoiceDetail: InvoiceDetailDto? = null,
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -46,6 +47,26 @@ class BuyerInvoicesViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load invoices") }
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
+            try {
+                apiService.warmUpDatabase()
+            } catch (_: Exception) {}
+            try {
+                val res = apiService.getInvoices()
+                _uiState.update {
+                    it.copy(
+                        invoices = res.body()?.invoices ?: emptyList(),
+                        isRefreshing = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message ?: "Failed to refresh invoices") }
             }
         }
     }
