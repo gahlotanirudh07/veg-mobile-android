@@ -2,8 +2,10 @@ package com.freshveg.app.core.update
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.freshveg.app.BuildConfig
@@ -24,6 +26,7 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -77,6 +80,29 @@ class AppUpdateManager @Inject constructor(
 
     var lastCheckedInfo: UpdateInfo? = null
         private set
+
+    /**
+     * Dedicated unauthenticated OkHttpClient for external CDN/GitHub downloads.
+     * Prevents AuthInterceptor from attaching internal MandiExpress JWTs to GitHub/AWS S3,
+     * and avoids memory overhead from request/response body logging.
+     */
+    private val downloadClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
+
+    private fun getUpdateDir(): File {
+        val externalDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        val dir = externalDir ?: File(context.filesDir, "updates")
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+        return dir
+    }
 
     companion object {
         const val DEFAULT_APK_DOWNLOAD_URL =
@@ -206,7 +232,7 @@ class AppUpdateManager @Inject constructor(
                 .header("User-Agent", "MandiExpress-Android")
                 .build()
 
-            okHttpClient.newCall(request).execute().use { response ->
+            downloadClient.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val bodyStr = response.body?.string()
                     if (!bodyStr.isNullOrBlank()) {
@@ -296,15 +322,16 @@ class AppUpdateManager @Inject constructor(
         try {
             val request = Request.Builder()
                 .url(downloadUrl)
+                .header("User-Agent", "MandiExpress-Android")
                 .build()
 
-            val updateDir = File(context.cacheDir, "updates").apply { mkdirs() }
+            val updateDir = getUpdateDir()
             val apkFile = File(updateDir, "MandiExpress-vLatest.apk")
             if (apkFile.exists()) {
                 apkFile.delete()
             }
 
-            okHttpClient.newCall(request).execute().use { response ->
+            downloadClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     val err = "Download failed with HTTP ${response.code}"
                     _updateState.value = UpdateDownloadState.Error(err)
@@ -351,7 +378,19 @@ class AppUpdateManager @Inject constructor(
                 }
             }
 
-            _updateState.value = UpdateDownloadState.Installing(apkFile)
+            // Verify downloaded APK integrity before proceeding to install
+            val packageArchiveInfo = context.packageManager.getPackageArchiveInfo(
+                apkFile.absolutePath,
+                PackageManager.GET_ACTIVITIES
+            )
+            if (packageArchiveInfo == null) {
+                apkFile.delete()
+                val err = "Downloaded package is invalid or corrupted. Please retry."
+                _updateState.value = UpdateDownloadState.Error(err)
+                return@withContext Result.failure(Exception(err))
+            }
+
+            _updateState.value = UpdateDownloadState.ReadyToInstall(apkFile)
             onComplete(apkFile)
             installApk(apkFile)
             Result.success(apkFile)
@@ -369,8 +408,22 @@ class AppUpdateManager @Inject constructor(
                 return
             }
 
+            // Validate package archive before launching installer
+            val archiveInfo = context.packageManager.getPackageArchiveInfo(
+                apkFile.absolutePath,
+                0
+            )
+            if (archiveInfo == null) {
+                apkFile.delete()
+                _updateState.value = UpdateDownloadState.Error("Invalid package file. Please re-download.")
+                return
+            }
+
+            // Android 8.0+ (Oreo): Check if installation from unknown sources is allowed
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 if (!context.packageManager.canRequestPackageInstalls()) {
+                    // Mark as ready to install so it can be resumed after returning from Settings
+                    _updateState.value = UpdateDownloadState.ReadyToInstall(apkFile)
                     val settingsIntent = Intent(
                         Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                         Uri.parse("package:${context.packageName}")
@@ -378,8 +431,11 @@ class AppUpdateManager @Inject constructor(
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     }
                     context.startActivity(settingsIntent)
+                    return // Do NOT launch installIntent prematurely
                 }
             }
+
+            _updateState.value = UpdateDownloadState.Installing(apkFile)
 
             val apkUri: Uri = FileProvider.getUriForFile(
                 context,
@@ -389,8 +445,22 @@ class AppUpdateManager @Inject constructor(
 
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(apkUri, "application/vnd.android.package-archive")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
             }
+
+            // Explicitly grant URI read permission to all matching activities
+            val resInfoList = context.packageManager.queryIntentActivities(
+                installIntent,
+                PackageManager.MATCH_DEFAULT_ONLY
+            )
+            for (resolveInfo in resInfoList) {
+                val pkg = resolveInfo.activityInfo.packageName
+                context.grantUriPermission(pkg, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
             context.startActivity(installIntent)
         } catch (e: Exception) {
             _updateState.value = UpdateDownloadState.Error("Failed to launch package installer: ${e.message}")

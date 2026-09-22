@@ -159,6 +159,21 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         triggerDatabaseWarmup()
+
+        // Auto-resume installation if user was prompted to enable unknown sources and returned with permission granted
+        val currentUpdateState = updateManager.updateState.value
+        if (currentUpdateState is com.freshveg.app.core.update.UpdateDownloadState.ReadyToInstall) {
+            val canInstall = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                packageManager.canRequestPackageInstalls()
+            } else {
+                true
+            }
+            if (canInstall) {
+                updateManager.installApk(currentUpdateState.apkFile)
+                return
+            }
+        }
+
         lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 updateManager.checkForUpdates()
