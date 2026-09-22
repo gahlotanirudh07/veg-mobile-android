@@ -40,6 +40,8 @@ fun BuyerMainScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     val view = LocalView.current
     val catalogueViewModel: BuyerCatalogueViewModel = hiltViewModel()
+    val invoicesViewModel: com.freshveg.app.features.buyer.invoices.BuyerInvoicesViewModel = hiltViewModel()
+    val invoicesUiState by invoicesViewModel.uiState.collectAsState()
 
     fun triggerHaptic() {
         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
@@ -208,7 +210,7 @@ fun BuyerMainScreen(
                     connectedSeller = null,
                     cutoffTime = "03:00 AM",
                     activeOrdersCount = 0,
-                    outstandingDues = 0.0,
+                    outstandingDues = invoicesUiState.khataSummary.outstanding,
                     onNavigateToCatalogue = {
                         triggerHaptic()
                         selectedTab = 1
@@ -234,6 +236,7 @@ fun BuyerMainScreen(
                     }
                 )
                 3 -> BuyerInvoicesScreen(
+                    viewModel = invoicesViewModel,
                     onNavigateBack = {
                         triggerHaptic()
                         selectedTab = 0

@@ -223,7 +223,7 @@ fun OrdersPipelineScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Date filters
-                        val dateFilters = listOf("ALL" to "All Dates", "TODAY" to "Today", "YESTERDAY" to "Yesterday", "THIS_WEEK" to "This Week")
+                        val dateFilters = listOf("TODAY" to "Today", "ALL" to "All Dates", "YESTERDAY" to "Yesterday", "THIS_WEEK" to "This Week")
                         dateFilters.forEach { (key, label) ->
                             FilterChip(
                                 selected = uiState.selectedDateFilter == key,
@@ -352,10 +352,26 @@ fun OrdersPipelineScreen(
                         Icon(Icons.Default.LocalShipping, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(64.dp))
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = if (uiState.searchQuery.isNotEmpty()) "No orders match '${uiState.searchQuery}'" else "No orders in this status",
+                            text = if (uiState.searchQuery.isNotEmpty()) {
+                                "No orders match '${uiState.searchQuery}'"
+                            } else if (uiState.selectedDateFilter == "TODAY") {
+                                "No orders placed today"
+                            } else {
+                                "No orders in this status"
+                            },
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
+                        if (uiState.selectedDateFilter == "TODAY" && uiState.orders.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Button(
+                                onClick = { viewModel.onSelectDateFilter("ALL") },
+                                colors = ButtonDefaults.buttonColors(containerColor = ActionGreen),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("View All Dates (${uiState.orders.size})", fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 } else {
                     LazyColumn(
@@ -454,14 +470,27 @@ fun OrderPipelineCard(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    val buyerName = cust?.primaryContactName?.takeIf { it.isNotBlank() }
+                    val shopName = cust?.businessName?.takeIf { it.isNotBlank() }
+
                     Text(
-                        text = cust?.businessName ?: "Customer",
+                        text = shopName ?: buyerName ?: "Customer",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium,
                         color = Color(0xFF111827),
-                        fontSize = 17.sp,
+                        fontSize = 16.5.sp,
                         maxLines = 1
                     )
+                    if (buyerName != null && buyerName != shopName) {
+                        Spacer(modifier = Modifier.height(1.dp))
+                        Text(
+                            text = "👤 Buyer: $buyerName",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ActionGreen,
+                            maxLines = 1
+                        )
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -479,7 +508,14 @@ fun OrderPipelineCard(
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp)
                             )
                         }
-                        if (!cust?.address.isNullOrBlank()) {
+                        if (!cust?.mobile.isNullOrBlank()) {
+                            Text(
+                                text = "• 📞 +91 ${cust!!.mobile}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF64748B),
+                                maxLines = 1
+                            )
+                        } else if (!cust?.address.isNullOrBlank()) {
                             Text(
                                 text = "• ${cust!!.address}",
                                 style = MaterialTheme.typography.bodySmall,

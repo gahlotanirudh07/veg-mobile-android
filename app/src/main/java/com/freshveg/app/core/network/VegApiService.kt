@@ -483,6 +483,9 @@ interface VegApiService {
     suspend fun getInvoiceById(@Path("invoiceId") invoiceId: String): Response<InvoiceDetailEnvelopeResponse>
 
     // 9. Payments & Khata Ledger (/payments, /customers)
+    @GET("payments/my-payments")
+    suspend fun getMyPayments(): Response<CustomerLedgerResponse>
+
     @GET("payments/overview")
     suspend fun getPaymentsOverview(): Response<PaymentsOverviewEnvelopeResponse>
 
@@ -803,10 +806,10 @@ data class PaymentsOverviewSummaryDto(
 )
 
 data class PaymentItemDto(
-    val id: String,
+    val id: String = "",
     val customerName: String? = null,
     val businessName: String? = null,
-    val customerId: String,
+    val customerId: String = "",
     val paymentDate: String? = null,
     val amount: Double = 0.0,
     val paymentMode: String = "CASH", // CASH, UPI, BANK_TRANSFER, CHEQUE

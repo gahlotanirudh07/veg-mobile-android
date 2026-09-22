@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.freshveg.app.core.network.CustomerLedgerSummaryDto
 import com.freshveg.app.core.network.InvoiceDetailDto
 import com.freshveg.app.core.network.InvoiceSummaryDto
+import com.freshveg.app.core.network.PaymentItemDto
 import com.freshveg.app.core.network.VegApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +17,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class BuyerInvoicesUiState(
+    val selectedTab: Int = 0, // 0: Invoices, 1: Payments Recorded by Seller
     val invoices: List<InvoiceSummaryDto> = emptyList(),
+    val payments: List<PaymentItemDto> = emptyList(),
+    val khataSummary: CustomerLedgerSummaryDto = CustomerLedgerSummaryDto(),
     val selectedInvoiceDetail: InvoiceDetailDto? = null,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
@@ -34,14 +39,29 @@ class BuyerInvoicesViewModel @Inject constructor(
         loadInvoices()
     }
 
+    fun selectTab(tabIndex: Int) {
+        _uiState.update { it.copy(selectedTab = tabIndex) }
+    }
+
     fun loadInvoices() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val res = apiService.getInvoices()
+                val invoicesRes = apiService.getInvoices()
+                val paymentsRes = apiService.getMyPayments()
+
+                val invoicesList: List<InvoiceSummaryDto> = if (invoicesRes.isSuccessful) {
+                    invoicesRes.body()?.invoices ?: emptyList()
+                } else {
+                    emptyList()
+                }
+                val paymentsBody = if (paymentsRes.isSuccessful) paymentsRes.body() else null
+
                 _uiState.update {
                     it.copy(
-                        invoices = res.body()?.invoices ?: emptyList(),
+                        invoices = invoicesList,
+                        payments = paymentsBody?.payments ?: emptyList(),
+                        khataSummary = paymentsBody?.summary ?: CustomerLedgerSummaryDto(),
                         isLoading = false
                     )
                 }
@@ -58,10 +78,21 @@ class BuyerInvoicesViewModel @Inject constructor(
                 apiService.warmUpDatabase()
             } catch (_: Exception) {}
             try {
-                val res = apiService.getInvoices()
+                val invoicesRes = apiService.getInvoices()
+                val paymentsRes = apiService.getMyPayments()
+
+                val invoicesList: List<InvoiceSummaryDto> = if (invoicesRes.isSuccessful) {
+                    invoicesRes.body()?.invoices ?: emptyList()
+                } else {
+                    emptyList()
+                }
+                val paymentsBody = if (paymentsRes.isSuccessful) paymentsRes.body() else null
+
                 _uiState.update {
                     it.copy(
-                        invoices = res.body()?.invoices ?: emptyList(),
+                        invoices = invoicesList,
+                        payments = paymentsBody?.payments ?: emptyList(),
+                        khataSummary = paymentsBody?.summary ?: CustomerLedgerSummaryDto(),
                         isRefreshing = false
                     )
                 }

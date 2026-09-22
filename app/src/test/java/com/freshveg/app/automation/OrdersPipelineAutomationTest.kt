@@ -20,6 +20,10 @@ class OrdersPipelineAutomationTest {
 
     private val apiService: VegApiService = mockk(relaxed = true)
 
+    private val todayIso = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+        timeZone = java.util.TimeZone.getTimeZone("UTC")
+    }.format(java.util.Date())
+
     private val mockOrders = listOf(
         OrderDto(
             id = "ord-1",
@@ -28,6 +32,7 @@ class OrdersPipelineAutomationTest {
             customer = CustomerSummaryDto(id = "74", businessName = "The Dining House", mobile = "9899923232"),
             status = "PENDING",
             totalAmount = 1500.0,
+            createdAt = todayIso,
             items = listOf(
                 OrderItemDto(
                     id = "item-1",
@@ -49,6 +54,7 @@ class OrdersPipelineAutomationTest {
             customer = CustomerSummaryDto(id = "75", businessName = "Tandoori Nights", mobile = "9136489683"),
             status = "CONFIRMED",
             totalAmount = 2400.0,
+            createdAt = todayIso,
             items = listOf(
                 OrderItemDto(
                     id = "item-2",
@@ -70,6 +76,7 @@ class OrdersPipelineAutomationTest {
             customer = CustomerSummaryDto(id = "78", businessName = "Bunny Bite N Sip", mobile = "8512035627"),
             status = "FULFILLED",
             totalAmount = 3100.0,
+            createdAt = todayIso,
             items = listOf(
                 OrderItemDto(
                     id = "item-3",

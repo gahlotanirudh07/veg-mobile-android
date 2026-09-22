@@ -23,7 +23,7 @@ data class OrdersPipelineUiState(
     val selectedStatusTab: String = "ALL", // "ALL", "PENDING", "CONFIRMED", "FULFILLED"
     val searchQuery: String = "",
     val selectedCustomer: String = "ALL",
-    val selectedDateFilter: String = "ALL", // "ALL", "TODAY", "YESTERDAY", "THIS_WEEK"
+    val selectedDateFilter: String = "TODAY", // "TODAY", "ALL", "YESTERDAY", "THIS_WEEK"
     val selectedSortOrder: String = "NEWEST", // "NEWEST", "OLDEST", "AMOUNT_HIGH", "AMOUNT_LOW"
     val cutoffTime: String? = null,
     val selectedOrderForFulfill: OrderDto? = null,

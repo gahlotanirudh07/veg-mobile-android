@@ -93,42 +93,197 @@ fun BuyerInvoicesScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // 1. Top Khata Balance Card
+            Surface(
+                color = CardSurface,
+                shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    val outstanding = uiState.khataSummary.outstanding
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (outstanding > 0) Color(0xFFFFF5F5) else Color(0xFFF0FDF4)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (outstanding > 0) Color(0xFFFECACA) else Color(0xFFBBF7D0)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = if (outstanding > 0) "TOTAL DUES OWED (बकाया)" else "ALL DUES CLEARED (कोई बकाया नहीं)",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (outstanding > 0) Color(0xFFDC2626) else ActionGreen
+                                    )
+                                    Text(
+                                        text = "₹${outstanding.toInt()}.00",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = if (outstanding > 0) Color(0xFFDC2626) else ActionGreen
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (outstanding > 0) Color(0xFFFEE2E2) else Color(0xFFDCFCE7))
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = if (outstanding > 0) "Payable" else "Settled 🎉",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (outstanding > 0) Color(0xFFB91C1C) else Color(0xFF15803D)
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(color = if (outstanding > 0) Color(0xFFFEE2E2) else Color(0xFFDCFCE7))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text("Payments Recorded (जमा)", style = MaterialTheme.typography.labelSmall, color = InkSecondary)
+                                    Text(
+                                        text = "₹${uiState.khataSummary.totalPaid.toInt()}.00",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ActionGreen
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("Total Billed (कुल बिल)", style = MaterialTheme.typography.labelSmall, color = InkSecondary)
+                                    Text(
+                                        text = "₹${uiState.khataSummary.totalInvoiced.toInt()}.00",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MainInk
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 2. Dual Tab Selector (Invoices vs Payments)
+                    TabRow(
+                        selectedTabIndex = uiState.selectedTab,
+                        containerColor = CardSurface,
+                        contentColor = ActionGreen
+                    ) {
+                        Tab(
+                            selected = uiState.selectedTab == 0,
+                            onClick = { viewModel.selectTab(0) },
+                            text = {
+                                Text(
+                                    "🧾 Bills & Invoices (${uiState.invoices.size})",
+                                    fontWeight = if (uiState.selectedTab == 0) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        )
+                        Tab(
+                            selected = uiState.selectedTab == 1,
+                            onClick = { viewModel.selectTab(1) },
+                            text = {
+                                Text(
+                                    "💳 Payments Recorded (${uiState.payments.size})",
+                                    fontWeight = if (uiState.selectedTab == 1) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+
+            // 3. Tab Content Area with Pull-to-Refresh
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .nestedScroll(pullToRefreshState.nestedScrollConnection)
             ) {
-                if (uiState.isLoading && uiState.invoices.isEmpty()) {
+                if (uiState.isLoading && uiState.invoices.isEmpty() && uiState.payments.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = ForestGreenPrimary)
                     }
-                } else if (uiState.invoices.isEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(64.dp))
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(stringResource(R.string.invoices_empty_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(stringResource(R.string.invoices_empty_desc), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                } else if (uiState.selectedTab == 0) {
+                    // Tab 0: Bills & Invoices
+                    if (uiState.invoices.isEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(64.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(stringResource(R.string.invoices_empty_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(stringResource(R.string.invoices_empty_desc), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        }
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(uiState.invoices, key = { it.id }) { invoice ->
+                                BuyerInvoiceCard(
+                                    invoice = invoice,
+                                    onClick = { viewModel.viewInvoiceDetail(invoice.id) },
+                                    onShare = { viewModel.shareWhatsAppInvoice(context, invoice) }
+                                )
+                            }
+                        }
                     }
                 } else {
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(uiState.invoices, key = { it.id }) { invoice ->
-                            BuyerInvoiceCard(
-                                invoice = invoice,
-                                onClick = { viewModel.viewInvoiceDetail(invoice.id) },
-                                onShare = { viewModel.shareWhatsAppInvoice(context, invoice) }
+                    // Tab 1: Payments Recorded by Seller
+                    if (uiState.payments.isEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(Icons.Default.Payment, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(64.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("No Payments Recorded Yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "All cash and UPI receipts recorded by your supplier will appear here in real-time for full transparency.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
+                        }
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(uiState.payments, key = { it.id }) { payment ->
+                                BuyerPaymentCard(payment = payment)
+                            }
                         }
                     }
                 }
@@ -273,3 +428,113 @@ fun BuyerInvoiceCard(
         }
     }
 }
+
+@Composable
+fun BuyerPaymentCard(
+    payment: com.freshveg.app.core.network.PaymentItemDto
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = CardSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Header: Amount & Payment Mode
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(ActionGreen.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = ActionGreen,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "+ ₹${payment.amount.toInt()}.00",
+                            fontWeight = FontWeight.ExtraBold,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = ActionGreen
+                        )
+                        Text(
+                            text = "Payment Received",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = InkSecondary
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFFE3F2FD))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = payment.paymentMode,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1976D2)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = Color(0xFFEEEEEE))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Date & Reference Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = com.freshveg.app.core.utils.formatSafeDate(payment.paymentDate, null),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = InkSecondary
+                )
+
+                if (!payment.referenceNumber.isNullOrBlank()) {
+                    Text(
+                        text = "Ref: ${payment.referenceNumber}",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF0F766E)
+                    )
+                }
+            }
+
+            if (!payment.notes.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "📝 ${payment.notes}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.DarkGray
+                )
+            }
+
+            if (!payment.recordedBy.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "👤 Recorded by: ${payment.recordedBy}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = InkSecondary
+                )
+            }
+        }
+    }
+}
+

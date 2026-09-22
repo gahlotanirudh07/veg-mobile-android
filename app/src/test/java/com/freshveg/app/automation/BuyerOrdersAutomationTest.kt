@@ -106,6 +106,7 @@ class BuyerOrdersAutomationTest {
         coEvery { apiService.getOrders() } returns Response.success(OrdersEnvelopeResponse(orders = multiOrders))
 
         val viewModel = BuyerOrdersViewModel(apiService)
+        viewModel.onSelectDateFilter("ALL")
         assertEquals(3, viewModel.uiState.value.filteredOrders.size)
 
         // Newest First sort check

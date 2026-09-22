@@ -31,8 +31,14 @@ data class InvoicesUiState(
     val successMessage: String? = null
 ) {
     val uniqueCustomers: List<String> get() {
-        val fromInvoices = invoices.mapNotNull { it.customer?.businessName?.trim() }
-        val fromPending = pendingOrders.mapNotNull { it.customer?.businessName?.trim() }
+        val fromInvoices = invoices.mapNotNull { inv ->
+            inv.customer?.businessName?.trim()?.takeIf { it.isNotEmpty() }
+                ?: inv.customer?.primaryContactName?.trim()?.takeIf { it.isNotEmpty() }
+        }
+        val fromPending = pendingOrders.mapNotNull { ord ->
+            ord.customer?.businessName?.trim()?.takeIf { it.isNotEmpty() }
+                ?: ord.customer?.primaryContactName?.trim()?.takeIf { it.isNotEmpty() }
+        }
         return (fromInvoices + fromPending).filter { it.isNotEmpty() }.distinct().sorted()
     }
 
@@ -42,11 +48,13 @@ data class InvoicesUiState(
             val matchesSearch = q.isEmpty() ||
                     inv.invoiceNumber.lowercase().contains(q) ||
                     (inv.customer?.businessName?.lowercase()?.contains(q) == true) ||
+                    (inv.customer?.primaryContactName?.lowercase()?.contains(q) == true) ||
                     (inv.customer?.mobile?.contains(q) == true) ||
                     (inv.order?.orderNumber?.lowercase()?.contains(q) == true)
 
             val matchesCustomer = selectedCustomer == "ALL" ||
                     inv.customer?.businessName == selectedCustomer ||
+                    inv.customer?.primaryContactName == selectedCustomer ||
                     inv.customerId == selectedCustomer
 
             val rawDate = inv.invoiceDate ?: inv.createdAt
@@ -74,10 +82,12 @@ data class InvoicesUiState(
             val matchesSearch = q.isEmpty() ||
                     order.orderNumber.lowercase().contains(q) ||
                     (order.customer?.businessName?.lowercase()?.contains(q) == true) ||
+                    (order.customer?.primaryContactName?.lowercase()?.contains(q) == true) ||
                     (order.customer?.mobile?.contains(q) == true)
 
             val matchesCustomer = selectedCustomer == "ALL" ||
                     order.customer?.businessName == selectedCustomer ||
+                    order.customer?.primaryContactName == selectedCustomer ||
                     order.customer?.id == selectedCustomer
 
             val matchesDate = when (selectedDateFilter) {

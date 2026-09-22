@@ -101,8 +101,8 @@ fun BuyerOrdersScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(
-                    "ALL" to stringResource(R.string.orders_tab_all),
                     "TODAY" to stringResource(R.string.orders_filter_today),
+                    "ALL" to stringResource(R.string.orders_tab_all),
                     "YESTERDAY" to stringResource(R.string.orders_filter_yesterday),
                     "THIS_WEEK" to stringResource(R.string.orders_filter_this_week)
                 ).forEach { (filter, label) ->
@@ -144,11 +144,21 @@ fun BuyerOrdersScreen(
                             Text("📦", fontSize = 48.sp)
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = stringResource(R.string.orders_empty),
+                                text = if (uiState.selectedDateFilter == "TODAY") "No orders placed today" else stringResource(R.string.orders_empty),
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MainInk
                             )
+                            if (uiState.selectedDateFilter == "TODAY" && uiState.orders.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Button(
+                                    onClick = { viewModel.onSelectDateFilter("ALL") },
+                                    colors = ButtonDefaults.buttonColors(containerColor = ActionGreen),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("View Past Orders (${uiState.orders.size})", fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 } else {

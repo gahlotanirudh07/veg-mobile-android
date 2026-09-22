@@ -22,7 +22,7 @@ data class BuyerOrdersUiState(
     val connectedSeller: ConnectedSellerDto? = null,
     val cutoffTime: String = "03:00 AM",
     val searchQuery: String = "",
-    val selectedDateFilter: String = "ALL", // "ALL", "TODAY", "YESTERDAY", "THIS_WEEK"
+    val selectedDateFilter: String = "TODAY", // "TODAY", "ALL", "YESTERDAY", "THIS_WEEK"
     val selectedSortOrder: String = "NEWEST", // "NEWEST", "OLDEST", "AMOUNT_HIGH", "AMOUNT_LOW"
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,

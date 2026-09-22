@@ -132,7 +132,7 @@ fun InvoicesScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Date filters
-                        val dateFilters = listOf("ALL" to "All Dates", "TODAY" to "Today", "YESTERDAY" to "Yesterday", "THIS_WEEK" to "This Week")
+                        val dateFilters = listOf("TODAY" to "Today", "ALL" to "All Dates", "YESTERDAY" to "Yesterday", "THIS_WEEK" to "This Week")
                         dateFilters.forEach { (key, label) ->
                             FilterChip(
                                 selected = uiState.selectedDateFilter == key,
@@ -411,14 +411,30 @@ fun GeneratedInvoiceCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = invoice.customer?.businessName ?: "Customer",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodyLarge
                     )
+                    val buyerName = invoice.customer?.primaryContactName
+                    val buyerMobile = invoice.customer?.mobile
+                    val buyerLine = listOfNotNull(
+                        buyerName?.takeIf { it.isNotBlank() }?.let { "👤 Buyer: $it" },
+                        buyerMobile?.takeIf { it.isNotBlank() }?.let { "📞 +91 $it" }
+                    ).joinToString("  •  ")
+                    if (buyerLine.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = buyerLine,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF0F766E)
+                        )
+                    }
                     val addr = invoice.customer?.address
                     if (!addr.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = addr,
                             style = MaterialTheme.typography.bodySmall,
@@ -426,6 +442,7 @@ fun GeneratedInvoiceCard(
                         )
                     }
                 }
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = com.freshveg.app.core.utils.formatSafeDate(invoice.invoiceDate, invoice.createdAt),
                     style = MaterialTheme.typography.labelMedium,
@@ -512,6 +529,21 @@ fun PendingOrderInvoiceCard(
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.bodyLarge
             )
+            val pendingBuyerName = order.customer?.primaryContactName
+            val pendingBuyerMobile = order.customer?.mobile
+            val pendingBuyerLine = listOfNotNull(
+                pendingBuyerName?.takeIf { it.isNotBlank() }?.let { "👤 Buyer: $it" },
+                pendingBuyerMobile?.takeIf { it.isNotBlank() }?.let { "📞 +91 $it" }
+            ).joinToString("  •  ")
+            if (pendingBuyerLine.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = pendingBuyerLine,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF0F766E)
+                )
+            }
 
             Spacer(modifier = Modifier.height(6.dp))
 

@@ -110,8 +110,12 @@ fun FulfillOrderBottomSheet(
                         fontWeight = FontWeight.Bold,
                         color = MainInk
                     )
+                    val buyerDesc = listOfNotNull(
+                        order.customer?.businessName?.takeIf { it.isNotBlank() },
+                        order.customer?.primaryContactName?.takeIf { it.isNotBlank() }?.let { "($it)" }
+                    ).joinToString(" ").ifEmpty { "Buyer" }
                     Text(
-                        text = "Order #${order.id.takeLast(6)} • ${order.customer?.businessName ?: order.customer?.primaryContactName ?: "Buyer"}",
+                        text = "Order #${order.orderNumber.ifEmpty { order.id.takeLast(6) }} • $buyerDesc",
                         style = MaterialTheme.typography.bodySmall,
                         color = InkSecondary
                     )
