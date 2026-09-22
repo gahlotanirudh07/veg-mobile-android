@@ -32,10 +32,10 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest -PversionCode=${{ github.run_number }} -PversionName=1.1.${{ github.run_number }} -PgitSha=${{ github.sha }} --no-daemon
+        run: ./gradlew testDebugUnitTest -Dorg.gradle.jvmargs="-Xmx3072m -XX:+UseParallelGC -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8" -PversionCode=${{ github.run_number }} -PversionName=1.1.${{ github.run_number }} -PgitSha=${{ github.sha }} --no-daemon
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug -PversionCode=${{ github.run_number }} -PversionName=1.1.${{ github.run_number }} -PgitSha=${{ github.sha }} --no-daemon
+        run: ./gradlew assembleDebug -Dorg.gradle.jvmargs="-Xmx3072m -XX:+UseParallelGC -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8" -PversionCode=${{ github.run_number }} -PversionName=1.1.${{ github.run_number }} -PgitSha=${{ github.sha }} --no-daemon
 
       - name: Rename APK for Release Distribution
         run: cp app/build/outputs/apk/debug/app-debug.apk MandiExpress.apk
