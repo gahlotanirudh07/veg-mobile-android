@@ -9,6 +9,12 @@
 
 **MandiExpress Android** is a production-grade native mobile client engineered for Indian wholesale vegetable mandis, commission agents, B2B restaurant buyers, and retail merchants. It features real-time bidirectional WebSocket sync, instantaneous bilingual localization (English & Hindi), weighing scale variance detection, khata ledger management, and offline-resilient state caching.
 
+### 🚀 Key Features (v1.1.15)
+* 📅 **Smart Today-First Orders**: Default order filters show Today's orders first for quick morning mandi action with 1-tap fallback to past orders.
+* 👤 **Buyer Identity Transparency**: Seller Order Pipeline & Invoices display the buyer's primary contact name and phone number alongside their shop name.
+* 💳 **Buyer Khata & Dues Transparency**: Buyers can track total dues owed, payments recorded by the seller, and complete payment history directly inside the Invoices tab.
+* 📲 **In-App Seamless OTA Updater**: Automatic update detection with zero-kill in-app download and installation.
+
 ---
 
 ## 🏗️ Technical Architecture & Specifications
