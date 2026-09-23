@@ -1,5 +1,6 @@
 package com.freshveg.app.core.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -70,28 +71,67 @@ fun UpdatePromptDialog(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (downloadState is UpdateDownloadState.Installing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(28.dp),
-                            color = ActionGreen,
-                            strokeWidth = 2.5.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = when (downloadState) {
-                                is UpdateDownloadState.ReadyToInstall -> Icons.Default.CheckCircle
-                                is UpdateDownloadState.Error -> Icons.Default.ErrorOutline
-                                is UpdateDownloadState.Downloading -> Icons.Default.Download
-                                else -> Icons.Default.SystemUpdate
-                            },
-                            contentDescription = null,
-                            tint = when (downloadState) {
-                                is UpdateDownloadState.ReadyToInstall -> ActionGreen
-                                is UpdateDownloadState.Error -> RedError
-                                else -> ActionGreen
-                            },
-                            modifier = Modifier.size(30.dp)
-                        )
+                    when (downloadState) {
+                        is UpdateDownloadState.Installing -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(36.dp),
+                                color = ActionGreen,
+                                strokeWidth = 3.dp
+                            )
+                            Icon(
+                                imageVector = Icons.Default.SystemUpdate,
+                                contentDescription = null,
+                                tint = ActionGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        is UpdateDownloadState.Downloading -> {
+                            if (downloadState.progressPercent in 0..100) {
+                                CircularProgressIndicator(
+                                    progress = { downloadState.progressPercent / 100f },
+                                    modifier = Modifier.size(36.dp),
+                                    color = ActionGreen,
+                                    strokeWidth = 3.dp,
+                                    trackColor = ActionGreen.copy(alpha = 0.2f)
+                                )
+                            } else {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(36.dp),
+                                    color = ActionGreen,
+                                    strokeWidth = 3.dp
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                tint = ActionGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        is UpdateDownloadState.ReadyToInstall -> {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = ActionGreen,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+                        is UpdateDownloadState.Error -> {
+                            Icon(
+                                imageVector = Icons.Default.ErrorOutline,
+                                contentDescription = null,
+                                tint = RedError,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+                        else -> {
+                            Icon(
+                                imageVector = Icons.Default.SystemUpdate,
+                                contentDescription = null,
+                                tint = ActionGreen,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
                     }
                 }
 
@@ -99,9 +139,13 @@ fun UpdatePromptDialog(
 
                 Text(
                     text = when (downloadState) {
-                        is UpdateDownloadState.Installing -> "Installing Update..."
+                        is UpdateDownloadState.Installing -> "Launching Installer..."
                         is UpdateDownloadState.ReadyToInstall -> "Update Ready to Install"
-                        is UpdateDownloadState.Downloading -> "Downloading Update..."
+                        is UpdateDownloadState.Downloading -> {
+                            if (downloadState.progressPercent >= 100) "Verifying Update..."
+                            else if (downloadState.progressPercent > 0) "Downloading Update (${downloadState.progressPercent}%)"
+                            else "Connecting to Server..."
+                        }
                         is UpdateDownloadState.Error -> "Download Interrupted"
                         else -> "App Update Available"
                     },
@@ -150,63 +194,108 @@ fun UpdatePromptDialog(
 
                 when (downloadState) {
                     is UpdateDownloadState.Downloading -> {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = SecondarySurface,
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            if (downloadState.progressPercent >= 0) {
-                                LinearProgressIndicator(
-                                    progress = { downloadState.progressPercent / 100f },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(8.dp)
-                                        .clip(RoundedCornerShape(4.dp)),
-                                    color = ActionGreen,
-                                    trackColor = SecondarySurface
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp)
+                            ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        color = ActionGreen,
+                                        strokeWidth = 2.dp
+                                    )
                                     Text(
-                                        "${downloadState.progressPercent}%",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
+                                        text = downloadState.stage,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
                                         color = MainInk
                                     )
-                                    Text(
-                                        formatBytesProgress(
-                                            downloadState.bytesDownloaded,
-                                            downloadState.totalBytes
-                                        ),
-                                        fontSize = 11.sp,
-                                        color = InkSecondary
-                                    )
                                 }
-                            } else {
-                                LinearProgressIndicator(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(8.dp)
-                                        .clip(RoundedCornerShape(4.dp)),
-                                    color = ActionGreen,
-                                    trackColor = SecondarySurface
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    "Downloading MandiExpress update...",
-                                    fontSize = 12.sp,
-                                    color = InkSecondary
-                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                if (downloadState.progressPercent in 0..100) {
+                                    LinearProgressIndicator(
+                                        progress = { downloadState.progressPercent / 100f },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(8.dp)
+                                            .clip(RoundedCornerShape(4.dp)),
+                                        color = ActionGreen,
+                                        trackColor = Color(0xFFE2E8F0)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "${downloadState.progressPercent}% Downloaded",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            color = ActionGreen
+                                        )
+                                        Text(
+                                            text = formatBytesProgress(
+                                                downloadState.bytesDownloaded,
+                                                downloadState.totalBytes
+                                            ),
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = InkSecondary
+                                        )
+                                    }
+                                } else {
+                                    LinearProgressIndicator(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(8.dp)
+                                            .clip(RoundedCornerShape(4.dp)),
+                                        color = ActionGreen,
+                                        trackColor = Color(0xFFE2E8F0)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "Downloading...",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            color = ActionGreen
+                                        )
+                                        Text(
+                                            text = formatBytesProgress(
+                                                downloadState.bytesDownloaded,
+                                                downloadState.totalBytes
+                                            ),
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = InkSecondary
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
 
                     is UpdateDownloadState.Installing -> {
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = ActionGreen.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, ActionGreen.copy(alpha = 0.25f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -217,21 +306,23 @@ fun UpdatePromptDialog(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(22.dp),
+                                    modifier = Modifier.size(26.dp),
                                     color = ActionGreen,
-                                    strokeWidth = 2.dp
+                                    strokeWidth = 2.5.dp
                                 )
                                 Column {
                                     Text(
-                                        text = "Launching Installer...",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
+                                        text = "Launching Package Installer...",
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Bold,
                                         color = MainInk
                                     )
+                                    Spacer(modifier = Modifier.height(3.dp))
                                     Text(
-                                        text = "Please tap 'Update' on the system prompt to finish installation.",
+                                        text = "Waiting for installation prompt. Tap 'Update' or 'Install' on your screen to complete.",
                                         fontSize = 11.5.sp,
-                                        color = InkSecondary
+                                        color = InkSecondary,
+                                        lineHeight = 16.sp
                                     )
                                 }
                             }
@@ -304,7 +395,31 @@ fun UpdatePromptDialog(
         confirmButton = {
             when (downloadState) {
                 is UpdateDownloadState.Downloading -> {
-                    // Downloading in progress
+                    Button(
+                        onClick = {},
+                        enabled = false,
+                        colors = ButtonDefaults.buttonColors(
+                            disabledContainerColor = ActionGreen.copy(alpha = 0.75f),
+                            disabledContentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        val btnLabel = if (downloadState.progressPercent in 0..99) {
+                            "Downloading... ${downloadState.progressPercent}%"
+                        } else if (downloadState.progressPercent >= 100) {
+                            "Verifying Package..."
+                        } else {
+                            "Connecting to Server..."
+                        }
+                        Text(btnLabel, fontWeight = FontWeight.Bold)
+                    }
                 }
                 is UpdateDownloadState.Installing -> {
                     Button(
@@ -319,7 +434,7 @@ fun UpdatePromptDialog(
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Reopen Installer", fontWeight = FontWeight.Bold)
+                        Text("Waiting for Prompt (Tap to Reopen)", fontWeight = FontWeight.Bold)
                     }
                 }
                 is UpdateDownloadState.ReadyToInstall -> {
@@ -355,7 +470,7 @@ fun UpdatePromptDialog(
             }
         },
         dismissButton = {
-            if (isDismissable && downloadState !is UpdateDownloadState.ReadyToInstall && downloadState !is UpdateDownloadState.Installing) {
+            if (isDismissable && downloadState !is UpdateDownloadState.ReadyToInstall && downloadState !is UpdateDownloadState.Installing && downloadState !is UpdateDownloadState.Downloading) {
                 TextButton(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth()
@@ -368,8 +483,8 @@ fun UpdatePromptDialog(
 }
 
 private fun formatBytesProgress(downloaded: Long, total: Long): String {
-    if (total <= 0) return "${(downloaded / (1024 * 1024.0)).format(1)} MB"
     val dMb = downloaded / (1024 * 1024.0)
+    if (total <= 0) return "${dMb.format(1)} MB downloaded"
     val tMb = total / (1024 * 1024.0)
     return "${dMb.format(1)} MB / ${tMb.format(1)} MB"
 }

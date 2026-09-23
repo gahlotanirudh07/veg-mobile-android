@@ -381,6 +381,7 @@ fun SellerAccountScreen(
             updateInfo = availableUpdate!!,
             downloadState = downloadState,
             onStartDownload = {
+                showUpdateDialog = false
                 updateManager?.let { mgr ->
                     coroutineScope.launch {
                         mgr.downloadAndInstall(availableUpdate!!.downloadUrl)

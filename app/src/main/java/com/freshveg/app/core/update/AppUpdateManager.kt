@@ -45,7 +45,12 @@ sealed class UpdateDownloadState {
     object Idle : UpdateDownloadState()
     object Checking : UpdateDownloadState()
     data class UpdateAvailable(val info: UpdateInfo) : UpdateDownloadState()
-    data class Downloading(val progressPercent: Int, val bytesDownloaded: Long, val totalBytes: Long) : UpdateDownloadState()
+    data class Downloading(
+        val progressPercent: Int,
+        val bytesDownloaded: Long,
+        val totalBytes: Long,
+        val stage: String = "Downloading update..."
+    ) : UpdateDownloadState()
     data class ReadyToInstall(val apkFile: File) : UpdateDownloadState()
     data class Installing(val apkFile: File) : UpdateDownloadState()
     data class Error(val message: String) : UpdateDownloadState()
@@ -320,6 +325,14 @@ class AppUpdateManager @Inject constructor(
         onComplete: (File) -> Unit = {}
     ): Result<File> = withContext(Dispatchers.IO) {
         try {
+            // Instantly transition to Downloading state so user sees active progress & spinner immediately
+            _updateState.value = UpdateDownloadState.Downloading(
+                progressPercent = 0,
+                bytesDownloaded = 0L,
+                totalBytes = -1L,
+                stage = "Connecting to server..."
+            )
+
             val request = Request.Builder()
                 .url(downloadUrl)
                 .header("User-Agent", "MandiExpress-Android")
@@ -347,6 +360,13 @@ class AppUpdateManager @Inject constructor(
                 val totalBytes = body.contentLength()
                 var downloadedBytes = 0L
 
+                _updateState.value = UpdateDownloadState.Downloading(
+                    progressPercent = if (totalBytes > 0) 0 else -1,
+                    bytesDownloaded = 0L,
+                    totalBytes = totalBytes,
+                    stage = "Downloading MandiExpress update..."
+                )
+
                 body.byteStream().use { input ->
                     FileOutputStream(apkFile).use { output ->
                         val buffer = ByteArray(8 * 1024)
@@ -358,17 +378,18 @@ class AppUpdateManager @Inject constructor(
                             downloadedBytes += bytes
 
                             val now = System.currentTimeMillis()
-                            if (now - lastReportTime > 100 || downloadedBytes == totalBytes) {
+                            if (now - lastReportTime > 80 || downloadedBytes == totalBytes) {
                                 lastReportTime = now
                                 val percent = if (totalBytes > 0) {
-                                    ((downloadedBytes * 100) / totalBytes).toInt()
+                                    ((downloadedBytes * 100) / totalBytes).toInt().coerceIn(0, 100)
                                 } else {
                                     -1
                                 }
                                 _updateState.value = UpdateDownloadState.Downloading(
                                     progressPercent = percent,
                                     bytesDownloaded = downloadedBytes,
-                                    totalBytes = totalBytes
+                                    totalBytes = totalBytes,
+                                    stage = if (percent >= 0) "Downloading update ($percent%)..." else "Downloading update..."
                                 )
                             }
                             bytes = input.read(buffer)
@@ -377,6 +398,14 @@ class AppUpdateManager @Inject constructor(
                     }
                 }
             }
+
+            // Verify package integrity stage
+            _updateState.value = UpdateDownloadState.Downloading(
+                progressPercent = 100,
+                bytesDownloaded = apkFile.length(),
+                totalBytes = apkFile.length(),
+                stage = "Verifying package integrity..."
+            )
 
             // Verify downloaded APK integrity before proceeding to install
             val packageArchiveInfo = context.packageManager.getPackageArchiveInfo(
