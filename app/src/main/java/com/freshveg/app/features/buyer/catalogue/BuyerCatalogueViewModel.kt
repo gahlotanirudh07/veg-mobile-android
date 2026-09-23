@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.freshveg.app.core.network.*
 import com.freshveg.app.core.utils.MandiTranslationUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -91,23 +94,32 @@ class BuyerCatalogueViewModel @Inject constructor(
                 _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             }
             try {
-                val productsRes = apiService.getProducts()
-                val categoriesRes = apiService.getCategories()
-                val sellerRes = apiService.getConnectedSeller()
-                val cutoffRes = apiService.getCutoffTime()
-                val frequentRes = apiService.getBuyerFrequentItems()
-                val lastOrderRes = apiService.getBuyerLastOrder()
+                coroutineScope {
+                    val productsDeferred = async { runCatching { apiService.getProducts() }.getOrNull() }
+                    val categoriesDeferred = async { runCatching { apiService.getCategories() }.getOrNull() }
+                    val sellerDeferred = async { runCatching { apiService.getConnectedSeller() }.getOrNull() }
+                    val cutoffDeferred = async { runCatching { apiService.getCutoffTime() }.getOrNull() }
+                    val frequentDeferred = async { runCatching { apiService.getBuyerFrequentItems() }.getOrNull() }
+                    val lastOrderDeferred = async { runCatching { apiService.getBuyerLastOrder() }.getOrNull() }
 
-                _uiState.update {
-                    it.copy(
-                        products = productsRes.body() ?: emptyList(),
-                        categories = categoriesRes.body() ?: emptyList(),
-                        connectedSeller = sellerRes.body()?.data,
-                        cutoffTime = cutoffRes.body()?.cutoffTime ?: "03:00 AM",
-                        frequentItems = frequentRes.body()?.frequentItems ?: emptyList(),
-                        lastOrder = lastOrderRes.body()?.lastOrder,
-                        isLoading = false
-                    )
+                    val productsRes = productsDeferred.await()
+                    val categoriesRes = categoriesDeferred.await()
+                    val sellerRes = sellerDeferred.await()
+                    val cutoffRes = cutoffDeferred.await()
+                    val frequentRes = frequentDeferred.await()
+                    val lastOrderRes = lastOrderDeferred.await()
+
+                    _uiState.update {
+                        it.copy(
+                            products = productsRes?.body() ?: emptyList(),
+                            categories = categoriesRes?.body() ?: emptyList(),
+                            connectedSeller = sellerRes?.body()?.data,
+                            cutoffTime = cutoffRes?.body()?.cutoffTime ?: "03:00 AM",
+                            frequentItems = frequentRes?.body()?.frequentItems ?: emptyList(),
+                            lastOrder = lastOrderRes?.body()?.lastOrder,
+                            isLoading = false
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 if (!silent) {
@@ -121,28 +133,32 @@ class BuyerCatalogueViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true) }
             try {
-                // Pre-warm database in case serverless PostgreSQL was asleep
-                try {
-                    apiService.warmUpDatabase()
-                } catch (_: Exception) {}
+                coroutineScope {
+                    val productsDeferred = async { runCatching { apiService.getProducts() }.getOrNull() }
+                    val categoriesDeferred = async { runCatching { apiService.getCategories() }.getOrNull() }
+                    val sellerDeferred = async { runCatching { apiService.getConnectedSeller() }.getOrNull() }
+                    val cutoffDeferred = async { runCatching { apiService.getCutoffTime() }.getOrNull() }
+                    val frequentDeferred = async { runCatching { apiService.getBuyerFrequentItems() }.getOrNull() }
+                    val lastOrderDeferred = async { runCatching { apiService.getBuyerLastOrder() }.getOrNull() }
 
-                val productsRes = apiService.getProducts()
-                val categoriesRes = apiService.getCategories()
-                val sellerRes = apiService.getConnectedSeller()
-                val cutoffRes = apiService.getCutoffTime()
-                val frequentRes = apiService.getBuyerFrequentItems()
-                val lastOrderRes = apiService.getBuyerLastOrder()
+                    val productsRes = productsDeferred.await()
+                    val categoriesRes = categoriesDeferred.await()
+                    val sellerRes = sellerDeferred.await()
+                    val cutoffRes = cutoffDeferred.await()
+                    val frequentRes = frequentDeferred.await()
+                    val lastOrderRes = lastOrderDeferred.await()
 
-                _uiState.update {
-                    it.copy(
-                        products = productsRes.body() ?: it.products,
-                        categories = categoriesRes.body() ?: it.categories,
-                        connectedSeller = sellerRes.body()?.data ?: it.connectedSeller,
-                        cutoffTime = cutoffRes.body()?.cutoffTime ?: it.cutoffTime,
-                        frequentItems = frequentRes.body()?.frequentItems ?: it.frequentItems,
-                        lastOrder = lastOrderRes.body()?.lastOrder ?: it.lastOrder,
-                        errorMessage = null
-                    )
+                    _uiState.update {
+                        it.copy(
+                            products = productsRes?.body() ?: it.products,
+                            categories = categoriesRes?.body() ?: it.categories,
+                            connectedSeller = sellerRes?.body()?.data ?: it.connectedSeller,
+                            cutoffTime = cutoffRes?.body()?.cutoffTime ?: it.cutoffTime,
+                            frequentItems = frequentRes?.body()?.frequentItems ?: it.frequentItems,
+                            lastOrder = lastOrderRes?.body()?.lastOrder ?: it.lastOrder,
+                            errorMessage = null
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = e.message ?: "Failed to refresh catalogue") }

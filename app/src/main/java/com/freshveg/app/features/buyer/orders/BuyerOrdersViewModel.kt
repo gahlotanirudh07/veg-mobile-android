@@ -10,6 +10,9 @@ import com.freshveg.app.core.utils.isToday
 import com.freshveg.app.core.utils.isYesterday
 import com.freshveg.app.core.utils.parseEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -99,17 +102,23 @@ class BuyerOrdersViewModel @Inject constructor(
                 _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             }
             try {
-                val ordersRes = apiService.getOrders()
-                val cutoffRes = apiService.getCutoffTime()
-                val sellerRes = try { apiService.getConnectedSeller() } catch (_: Exception) { null }
+                coroutineScope {
+                    val ordersDeferred = async { runCatching { apiService.getOrders() }.getOrNull() }
+                    val cutoffDeferred = async { runCatching { apiService.getCutoffTime() }.getOrNull() }
+                    val sellerDeferred = async { runCatching { apiService.getConnectedSeller() }.getOrNull() }
 
-                _uiState.update {
-                    it.copy(
-                        orders = ordersRes.body()?.orders ?: emptyList(),
-                        cutoffTime = cutoffRes.body()?.cutoffTime ?: "03:00 AM",
-                        connectedSeller = sellerRes?.body()?.data,
-                        isLoading = false
-                    )
+                    val ordersRes = ordersDeferred.await()
+                    val cutoffRes = cutoffDeferred.await()
+                    val sellerRes = sellerDeferred.await()
+
+                    _uiState.update {
+                        it.copy(
+                            orders = ordersRes?.body()?.orders ?: emptyList(),
+                            cutoffTime = cutoffRes?.body()?.cutoffTime ?: "03:00 AM",
+                            connectedSeller = sellerRes?.body()?.data,
+                            isLoading = false
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 if (!silent) {
@@ -123,23 +132,27 @@ class BuyerOrdersViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
             try {
-                apiService.warmUpDatabase()
-            } catch (_: Exception) {}
-            try {
-                val ordersRes = apiService.getOrders()
-                val cutoffRes = apiService.getCutoffTime()
-                val sellerRes = try { apiService.getConnectedSeller() } catch (_: Exception) { null }
+                coroutineScope {
+                    val ordersDeferred = async { runCatching { apiService.getOrders() }.getOrNull() }
+                    val cutoffDeferred = async { runCatching { apiService.getCutoffTime() }.getOrNull() }
+                    val sellerDeferred = async { runCatching { apiService.getConnectedSeller() }.getOrNull() }
 
-                _uiState.update {
-                    it.copy(
-                        orders = ordersRes.body()?.orders ?: emptyList(),
-                        cutoffTime = cutoffRes.body()?.cutoffTime ?: "03:00 AM",
-                        connectedSeller = sellerRes?.body()?.data,
-                        isRefreshing = false
-                    )
+                    val ordersRes = ordersDeferred.await()
+                    val cutoffRes = cutoffDeferred.await()
+                    val sellerRes = sellerDeferred.await()
+
+                    _uiState.update {
+                        it.copy(
+                            orders = ordersRes?.body()?.orders ?: it.orders,
+                            cutoffTime = cutoffRes?.body()?.cutoffTime ?: it.cutoffTime,
+                            connectedSeller = sellerRes?.body()?.data ?: it.connectedSeller
+                        )
+                    }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message ?: "Failed to refresh orders") }
+                _uiState.update { it.copy(errorMessage = e.message ?: "Failed to refresh orders") }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false) }
             }
         }
     }

@@ -10,6 +10,9 @@ import com.freshveg.app.core.utils.isToday
 import com.freshveg.app.core.utils.isYesterday
 import com.freshveg.app.core.utils.parseEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -146,15 +149,20 @@ class InvoicesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val invoicesRes = apiService.getInvoices()
-                val pendingRes = apiService.getPendingInvoices()
+                coroutineScope {
+                    val invoicesDeferred = async { runCatching { apiService.getInvoices() }.getOrNull() }
+                    val pendingDeferred = async { runCatching { apiService.getPendingInvoices() }.getOrNull() }
 
-                _uiState.update {
-                    it.copy(
-                        invoices = invoicesRes.body()?.invoices ?: emptyList(),
-                        pendingOrders = pendingRes.body()?.orders ?: emptyList(),
-                        isLoading = false
-                    )
+                    val invoicesRes = invoicesDeferred.await()
+                    val pendingRes = pendingDeferred.await()
+
+                    _uiState.update {
+                        it.copy(
+                            invoices = invoicesRes?.body()?.invoices ?: emptyList(),
+                            pendingOrders = pendingRes?.body()?.orders ?: emptyList(),
+                            isLoading = false
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load invoices") }
@@ -166,18 +174,24 @@ class InvoicesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
             try {
-                val invoicesRes = apiService.getInvoices()
-                val pendingRes = apiService.getPendingInvoices()
+                coroutineScope {
+                    val invoicesDeferred = async { runCatching { apiService.getInvoices() }.getOrNull() }
+                    val pendingDeferred = async { runCatching { apiService.getPendingInvoices() }.getOrNull() }
 
-                _uiState.update {
-                    it.copy(
-                        invoices = invoicesRes.body()?.invoices ?: emptyList(),
-                        pendingOrders = pendingRes.body()?.orders ?: emptyList(),
-                        isRefreshing = false
-                    )
+                    val invoicesRes = invoicesDeferred.await()
+                    val pendingRes = pendingDeferred.await()
+
+                    _uiState.update {
+                        it.copy(
+                            invoices = invoicesRes?.body()?.invoices ?: it.invoices,
+                            pendingOrders = pendingRes?.body()?.orders ?: it.pendingOrders
+                        )
+                    }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message ?: "Failed to refresh invoices") }
+                _uiState.update { it.copy(errorMessage = e.message ?: "Failed to refresh invoices") }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false) }
             }
         }
     }

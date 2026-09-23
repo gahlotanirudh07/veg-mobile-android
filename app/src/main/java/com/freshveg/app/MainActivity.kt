@@ -27,7 +27,11 @@ import com.freshveg.app.core.ui.theme.BackgroundSurface
 import com.freshveg.app.core.ui.theme.FreshVegTheme
 import com.freshveg.app.navigation.AppNavigation
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Locale
 import javax.inject.Inject
@@ -141,14 +145,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private var lastWarmupTime: Long = 0L
+    private var keepAliveJob: Job? = null
 
-    private fun triggerDatabaseWarmup() {
-        val now = System.currentTimeMillis()
-        // Pre-warm if first launch OR if app was in Recent Apps for > 4 minutes
-        if (now - lastWarmupTime > 4 * 60 * 1000L) {
-            lastWarmupTime = now
-            lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+    private fun startForegroundKeepAlive() {
+        keepAliveJob?.cancel()
+        keepAliveJob = lifecycleScope.launch(Dispatchers.IO) {
+            // Immediate warm-up when entering foreground
+            try {
+                apiService.warmUpDatabase()
+            } catch (_: Exception) {}
+
+            // Keep database awake every 3.5 minutes (210s) while app remains active in foreground
+            while (isActive) {
+                delay(210_000L)
                 try {
                     apiService.warmUpDatabase()
                 } catch (_: Exception) {}
@@ -156,9 +165,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun stopForegroundKeepAlive() {
+        keepAliveJob?.cancel()
+        keepAliveJob = null
+    }
+
     override fun onResume() {
         super.onResume()
-        triggerDatabaseWarmup()
+        startForegroundKeepAlive()
 
         // Auto-resume installation if user was prompted to enable unknown sources and returned with permission granted
         val currentUpdateState = updateManager.updateState.value
@@ -174,15 +188,21 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 updateManager.checkForUpdates()
             } catch (_: Exception) {}
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        stopForegroundKeepAlive()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        stopForegroundKeepAlive()
         mandiSocketManager.disconnect()
     }
 }

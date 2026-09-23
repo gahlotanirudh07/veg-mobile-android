@@ -7,6 +7,9 @@ import androidx.lifecycle.viewModelScope
 import com.freshveg.app.core.datastore.SessionManager
 import com.freshveg.app.core.network.*
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
@@ -94,28 +97,33 @@ class SellerRatesViewModel @Inject constructor(
             } catch (e: Exception) {}
 
             try {
-                val ratesRes = apiService.getSellerRateCard()
-                val catRes = apiService.getCategories()
+                coroutineScope {
+                    val ratesDeferred = async { runCatching { apiService.getSellerRateCard() }.getOrNull() }
+                    val catDeferred = async { runCatching { apiService.getCategories() }.getOrNull() }
 
-                if (ratesRes.isSuccessful && ratesRes.body() != null) {
-                    val items = ratesRes.body()!!.map { prod ->
-                        RateItemUiState(
-                            product = prod,
-                            originalPrice = prod.sellingPrice,
-                            currentPrice = prod.sellingPrice,
-                            originalAvailability = prod.isAvailable,
-                            isAvailable = prod.isAvailable
-                        )
+                    val ratesRes = ratesDeferred.await()
+                    val catRes = catDeferred.await()
+
+                    if (ratesRes != null && ratesRes.isSuccessful && ratesRes.body() != null) {
+                        val items = ratesRes.body()!!.map { prod ->
+                            RateItemUiState(
+                                product = prod,
+                                originalPrice = prod.sellingPrice,
+                                currentPrice = prod.sellingPrice,
+                                originalAvailability = prod.isAvailable,
+                                isAvailable = prod.isAvailable
+                            )
+                        }
+                        _uiState.update {
+                            it.copy(
+                                rateItems = items,
+                                categories = catRes?.body() ?: emptyList(),
+                                isLoading = false
+                            )
+                        }
+                    } else {
+                        _uiState.update { it.copy(isLoading = false, errorMessage = "Failed to load rate card") }
                     }
-                    _uiState.update {
-                        it.copy(
-                            rateItems = items,
-                            categories = catRes.body() ?: emptyList(),
-                            isLoading = false
-                        )
-                    }
-                } else {
-                    _uiState.update { it.copy(isLoading = false, errorMessage = "Failed to load rate card") }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Network error") }
@@ -127,34 +135,35 @@ class SellerRatesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true, errorMessage = null, successMessage = null) }
             try {
-                apiService.warmUpDatabase()
-            } catch (_: Exception) {}
-            try {
-                val ratesRes = apiService.getSellerRateCard()
-                val catRes = apiService.getCategories()
+                coroutineScope {
+                    val ratesDeferred = async { runCatching { apiService.getSellerRateCard() }.getOrNull() }
+                    val catDeferred = async { runCatching { apiService.getCategories() }.getOrNull() }
 
-                if (ratesRes.isSuccessful && ratesRes.body() != null) {
-                    val items = ratesRes.body()!!.map { prod ->
-                        RateItemUiState(
-                            product = prod,
-                            originalPrice = prod.sellingPrice,
-                            currentPrice = prod.sellingPrice,
-                            originalAvailability = prod.isAvailable,
-                            isAvailable = prod.isAvailable
-                        )
+                    val ratesRes = ratesDeferred.await()
+                    val catRes = catDeferred.await()
+
+                    if (ratesRes != null && ratesRes.isSuccessful && ratesRes.body() != null) {
+                        val items = ratesRes.body()!!.map { prod ->
+                            RateItemUiState(
+                                product = prod,
+                                originalPrice = prod.sellingPrice,
+                                currentPrice = prod.sellingPrice,
+                                originalAvailability = prod.isAvailable,
+                                isAvailable = prod.isAvailable
+                            )
+                        }
+                        _uiState.update {
+                            it.copy(
+                                rateItems = items,
+                                categories = catRes?.body() ?: it.categories
+                            )
+                        }
                     }
-                    _uiState.update {
-                        it.copy(
-                            rateItems = items,
-                            categories = catRes.body() ?: emptyList(),
-                            isRefreshing = false
-                        )
-                    }
-                } else {
-                    _uiState.update { it.copy(isRefreshing = false) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message ?: "Network error") }
+                _uiState.update { it.copy(errorMessage = e.message ?: "Network error") }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false) }
             }
         }
     }
