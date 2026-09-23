@@ -9,16 +9,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,6 +42,19 @@ fun InvoicesScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val pullToRefreshState = rememberPullToRefreshState()
+
+    if (pullToRefreshState.isRefreshing) {
+        LaunchedEffect(true) {
+            viewModel.refresh()
+        }
+    }
+
+    LaunchedEffect(uiState.isRefreshing) {
+        if (!uiState.isRefreshing) {
+            pullToRefreshState.endRefresh()
+        }
+    }
 
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
@@ -275,6 +292,7 @@ fun InvoicesScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .weight(1f)
+                    .nestedScroll(pullToRefreshState.nestedScrollConnection)
             ) {
                 if (uiState.isLoading && uiState.invoices.isEmpty() && uiState.pendingOrders.isEmpty()) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = ActionGreen)
@@ -284,6 +302,7 @@ fun InvoicesScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
                                 .padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
@@ -316,6 +335,7 @@ fun InvoicesScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
                                 .padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
@@ -344,6 +364,13 @@ fun InvoicesScreen(
                         }
                     }
                 }
+
+                PullToRefreshContainer(
+                    state = pullToRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    containerColor = Color.White,
+                    contentColor = ActionGreen
+                )
             }
         }
     }
@@ -412,16 +439,18 @@ fun GeneratedInvoiceCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
+                    val cust = invoice.customer ?: invoice.order?.customer
+                    val shopName = cust?.businessName?.takeIf { it.isNotBlank() } ?: "Customer"
                     Text(
-                        text = invoice.customer?.businessName ?: "Customer",
+                        text = shopName,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodyLarge
                     )
-                    val buyerName = invoice.customer?.primaryContactName
-                    val buyerMobile = invoice.customer?.mobile
+                    val buyerName = cust?.primaryContactName?.takeIf { it.isNotBlank() }
+                    val buyerMobile = cust?.mobile?.takeIf { it.isNotBlank() }
                     val buyerLine = listOfNotNull(
-                        buyerName?.takeIf { it.isNotBlank() }?.let { "👤 Buyer: $it" },
-                        buyerMobile?.takeIf { it.isNotBlank() }?.let { "📞 +91 $it" }
+                        buyerName?.let { "👤 Buyer: $it" },
+                        buyerMobile?.let { "📞 +91 $it" }
                     ).joinToString("  •  ")
                     if (buyerLine.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(2.dp))
@@ -432,7 +461,7 @@ fun GeneratedInvoiceCard(
                             color = Color(0xFF0F766E)
                         )
                     }
-                    val addr = invoice.customer?.address
+                    val addr = cust?.address
                     if (!addr.isNullOrEmpty()) {
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
@@ -524,16 +553,18 @@ fun PendingOrderInvoiceCard(
             }
 
             Spacer(modifier = Modifier.height(4.dp))
+            val cust = order.customer ?: order.invoices.firstOrNull()?.customer
+            val shopName = cust?.businessName?.takeIf { it.isNotBlank() } ?: "Customer"
             Text(
-                text = order.customer?.businessName ?: "Customer",
+                text = shopName,
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.bodyLarge
             )
-            val pendingBuyerName = order.customer?.primaryContactName
-            val pendingBuyerMobile = order.customer?.mobile
+            val pendingBuyerName = cust?.primaryContactName?.takeIf { it.isNotBlank() }
+            val pendingBuyerMobile = cust?.mobile?.takeIf { it.isNotBlank() }
             val pendingBuyerLine = listOfNotNull(
-                pendingBuyerName?.takeIf { it.isNotBlank() }?.let { "👤 Buyer: $it" },
-                pendingBuyerMobile?.takeIf { it.isNotBlank() }?.let { "📞 +91 $it" }
+                pendingBuyerName?.let { "👤 Buyer: $it" },
+                pendingBuyerMobile?.let { "📞 +91 $it" }
             ).joinToString("  •  ")
             if (pendingBuyerLine.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(2.dp))

@@ -26,6 +26,7 @@ data class InvoicesUiState(
     val selectedDateFilter: String = "ALL", // "ALL", "TODAY", "YESTERDAY", "THIS_WEEK"
     val selectedSortOrder: String = "NEWEST", // "NEWEST", "OLDEST", "AMOUNT_HIGH", "AMOUNT_LOW"
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val isGenerating: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null
@@ -157,6 +158,26 @@ class InvoicesViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load invoices") }
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
+            try {
+                val invoicesRes = apiService.getInvoices()
+                val pendingRes = apiService.getPendingInvoices()
+
+                _uiState.update {
+                    it.copy(
+                        invoices = invoicesRes.body()?.invoices ?: emptyList(),
+                        pendingOrders = pendingRes.body()?.orders ?: emptyList(),
+                        isRefreshing = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message ?: "Failed to refresh invoices") }
             }
         }
     }
