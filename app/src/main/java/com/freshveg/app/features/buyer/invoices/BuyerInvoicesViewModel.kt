@@ -10,9 +10,6 @@ import com.freshveg.app.core.network.InvoiceSummaryDto
 import com.freshveg.app.core.network.PaymentItemDto
 import com.freshveg.app.core.network.VegApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -50,28 +47,23 @@ class BuyerInvoicesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                coroutineScope {
-                    val invoicesDeferred = async(Dispatchers.IO) { runCatching { apiService.getInvoices() }.getOrNull() }
-                    val paymentsDeferred = async(Dispatchers.IO) { runCatching { apiService.getMyPayments() }.getOrNull() }
+                val invoicesRes = apiService.getInvoices()
+                val paymentsRes = apiService.getMyPayments()
 
-                    val invoicesRes = invoicesDeferred.await()
-                    val paymentsRes = paymentsDeferred.await()
+                val invoicesList: List<InvoiceSummaryDto> = if (invoicesRes.isSuccessful) {
+                    invoicesRes.body()?.invoices ?: emptyList()
+                } else {
+                    emptyList()
+                }
+                val paymentsBody = if (paymentsRes.isSuccessful) paymentsRes.body() else null
 
-                    val invoicesList: List<InvoiceSummaryDto> = if (invoicesRes != null && invoicesRes.isSuccessful) {
-                        invoicesRes.body()?.invoices ?: emptyList()
-                    } else {
-                        emptyList()
-                    }
-                    val paymentsBody = if (paymentsRes != null && paymentsRes.isSuccessful) paymentsRes.body() else null
-
-                    _uiState.update {
-                        it.copy(
-                            invoices = invoicesList,
-                            payments = paymentsBody?.payments ?: emptyList(),
-                            khataSummary = paymentsBody?.summary ?: CustomerLedgerSummaryDto(),
-                            isLoading = false
-                        )
-                    }
+                _uiState.update {
+                    it.copy(
+                        invoices = invoicesList,
+                        payments = paymentsBody?.payments ?: emptyList(),
+                        khataSummary = paymentsBody?.summary ?: CustomerLedgerSummaryDto(),
+                        isLoading = false
+                    )
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load invoices") }
@@ -83,28 +75,29 @@ class BuyerInvoicesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
             try {
-                coroutineScope {
-                    val invoicesDeferred = async(Dispatchers.IO) { runCatching { apiService.getInvoices() }.getOrNull() }
-                    val paymentsDeferred = async(Dispatchers.IO) { runCatching { apiService.getMyPayments() }.getOrNull() }
+                apiService.warmUpDatabase()
+            } catch (_: Exception) {}
+            try {
+                val invoicesRes = apiService.getInvoices()
+                val paymentsRes = apiService.getMyPayments()
 
-                    val invoicesRes = invoicesDeferred.await()
-                    val paymentsRes = paymentsDeferred.await()
+                val invoicesList: List<InvoiceSummaryDto> = if (invoicesRes.isSuccessful) {
+                    invoicesRes.body()?.invoices ?: emptyList()
+                } else {
+                    emptyList()
+                }
+                val paymentsBody = if (paymentsRes.isSuccessful) paymentsRes.body() else null
 
-                    val invoicesBody = if (invoicesRes != null && invoicesRes.isSuccessful) invoicesRes.body()?.invoices else null
-                    val paymentsBody = if (paymentsRes != null && paymentsRes.isSuccessful) paymentsRes.body() else null
-
-                    _uiState.update { current ->
-                        current.copy(
-                            invoices = invoicesBody ?: current.invoices,
-                            payments = paymentsBody?.payments ?: current.payments,
-                            khataSummary = paymentsBody?.summary ?: current.khataSummary
-                        )
-                    }
+                _uiState.update {
+                    it.copy(
+                        invoices = invoicesList,
+                        payments = paymentsBody?.payments ?: emptyList(),
+                        khataSummary = paymentsBody?.summary ?: CustomerLedgerSummaryDto(),
+                        isRefreshing = false
+                    )
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = e.message ?: "Failed to refresh invoices") }
-            } finally {
-                _uiState.update { it.copy(isRefreshing = false) }
+                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message ?: "Failed to refresh invoices") }
             }
         }
     }
