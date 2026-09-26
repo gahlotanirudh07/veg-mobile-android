@@ -70,6 +70,13 @@ fun InvoicesScreen(
         }
     }
 
+    LaunchedEffect(uiState.transientError) {
+        uiState.transientError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessages()
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -287,6 +294,38 @@ fun InvoicesScreen(
                 }
             }
 
+            // 2.5 Neon DB Waking Up Indicator
+            AnimatedVisibility(
+                visible = uiState.isWakingUp,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Surface(
+                    color = Color(0xFFFEF3C7),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp,
+                            color = Color(0xFFD97706)
+                        )
+                        Text(
+                            text = "⚡ Connecting to live Mandi database...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF92400E),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
             // 3. Tab Content
             Box(
                 modifier = Modifier
@@ -294,8 +333,42 @@ fun InvoicesScreen(
                     .weight(1f)
                     .nestedScroll(pullToRefreshState.nestedScrollConnection)
             ) {
-                if (uiState.isLoading && uiState.invoices.isEmpty() && uiState.pendingOrders.isEmpty()) {
+                if (uiState.isLoading && !uiState.hasData) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = ActionGreen)
+                } else if (!uiState.hasData && uiState.errorMessage != null) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.CloudOff, contentDescription = null, tint = Color(0xFFE53935), modifier = Modifier.size(56.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Could not load invoices",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = uiState.errorMessage ?: "The database is starting up or network was interrupted.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = viewModel::refresh,
+                            colors = ButtonDefaults.buttonColors(containerColor = ActionGreen),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Retry Connection", fontWeight = FontWeight.Bold)
+                        }
+                    }
                 } else if (uiState.selectedTab == 0) {
                     // Tab 0: Generated Invoices List
                     if (uiState.filteredInvoices.isEmpty()) {

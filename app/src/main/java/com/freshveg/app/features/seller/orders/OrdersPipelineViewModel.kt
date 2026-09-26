@@ -18,6 +18,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.freshveg.app.core.cache.LocalDataCache
+import com.freshveg.app.core.lifecycle.AppForegroundMonitor
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+
 data class OrdersPipelineUiState(
     val orders: List<OrderDto> = emptyList(),
     val selectedStatusTab: String = "ALL", // "ALL", "PENDING", "CONFIRMED", "FULFILLED"
@@ -30,11 +38,18 @@ data class OrdersPipelineUiState(
     val isEditCutoffOpen: Boolean = false,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
+    val isWakingUp: Boolean = false,
     val isFulfilling: Boolean = false,
     val isGeneratingInvoice: Boolean = false,
     val errorMessage: String? = null,
-    val successMessage: String? = null
+    val transientError: String? = null,
+    val successMessage: String? = null,
+    val lastUpdated: Long = 0L,
+    val hasLoadedOnce: Boolean = false
 ) {
+    val hasData: Boolean get() = orders.isNotEmpty()
+    val isGenuinelyEmpty: Boolean get() = hasLoadedOnce && orders.isEmpty() && errorMessage == null
+
     val pendingCount: Int get() = orders.count { it.status == "PENDING" }
     val confirmedCount: Int get() = orders.count { it.status == "CONFIRMED" }
     val fulfilledCount: Int get() = orders.count { it.status == "FULFILLED" }
@@ -85,11 +100,15 @@ data class OrdersPipelineUiState(
 @HiltViewModel
 class OrdersPipelineViewModel @Inject constructor(
     private val apiService: VegApiService,
+    private val localDataCache: LocalDataCache? = null,
+    private val appForegroundMonitor: AppForegroundMonitor? = null,
     private val mandiSocketManager: MandiSocketManager? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OrdersPipelineUiState())
     val uiState = _uiState.asStateFlow()
+
+    private var activeRefreshJob: Job? = null
 
     fun onSelectCustomer(customer: String) {
         _uiState.update { it.copy(selectedCustomer = customer) }
@@ -104,9 +123,41 @@ class OrdersPipelineViewModel @Inject constructor(
     }
 
     init {
-        loadOrders()
+        restoreFromLocalCache()
+        loadOrders(silent = _uiState.value.hasData)
         loadCutoff()
         listenToSocketEvents()
+        listenToAppForegroundResume()
+    }
+
+    private fun restoreFromLocalCache() {
+        val cache = localDataCache ?: return
+        val cachedOrders: List<OrderDto>? = cache.get(
+            LocalDataCache.KEY_SELLER_ORDERS,
+            object : TypeToken<List<OrderDto>>() {}.type
+        )
+        if (!cachedOrders.isNullOrEmpty()) {
+            _uiState.update {
+                it.copy(
+                    orders = cachedOrders,
+                    lastUpdated = cache.getLastUpdated(LocalDataCache.KEY_SELLER_ORDERS),
+                    hasLoadedOnce = true
+                )
+            }
+        }
+    }
+
+    private fun listenToAppForegroundResume() {
+        val monitor = appForegroundMonitor ?: return
+        viewModelScope.launch {
+            monitor.appResumedEvents.collect {
+                val cache = localDataCache
+                val isStale = cache?.isStale(LocalDataCache.KEY_SELLER_ORDERS) ?: true
+                if (isStale) {
+                    refresh(isManualPull = false, silent = true)
+                }
+            }
+        }
     }
 
     private fun listenToSocketEvents() {
@@ -123,51 +174,107 @@ class OrdersPipelineViewModel @Inject constructor(
     }
 
     fun loadOrders(silent: Boolean = false) {
-        viewModelScope.launch {
-            if (!silent) {
-                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-            }
-            try {
-                val res = apiService.getOrders()
-                if (res.isSuccessful && res.body() != null) {
-                    _uiState.update { it.copy(orders = res.body()?.orders ?: emptyList(), isLoading = false) }
-                } else {
-                    if (!silent) {
-                        _uiState.update { it.copy(isLoading = false, errorMessage = "Failed to load orders") }
-                    }
-                }
-            } catch (e: Exception) {
-                if (!silent) {
-                    _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Network error") }
-                }
-            }
-        }
+        refresh(isManualPull = false, silent = silent)
     }
 
-    fun refresh() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
+    fun refresh(isManualPull: Boolean = true, silent: Boolean = false): Job {
+        val existing = activeRefreshJob
+        if (existing != null && existing.isActive) {
+            return existing
+        }
+
+        val job = viewModelScope.launch {
+            val hasData = _uiState.value.hasData
+            if (!hasData && !silent) {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, isWakingUp = false) }
+            } else {
+                _uiState.update { it.copy(isRefreshing = true, transientError = null) }
+            }
+
+            val wakingDetectionJob = launch {
+                delay(FreshnessConfig.slowConnectionThresholdMs)
+                _uiState.update { it.copy(isWakingUp = true) }
+            }
+
             try {
-                apiService.warmUpDatabase()
-            } catch (_: Exception) {}
-            try {
-                val res = apiService.getOrders()
-                val cutoffRes = try { apiService.getCutoffTime() } catch (_: Exception) { null }
-                if (res.isSuccessful && res.body() != null) {
-                    _uiState.update {
-                        it.copy(
-                            orders = res.body()?.orders ?: emptyList(),
-                            cutoffTime = cutoffRes?.body()?.cutoffTime ?: it.cutoffTime,
-                            isRefreshing = false
-                        )
+                coroutineScope {
+                    val ordersDeferred = async { runCatching { apiService.getOrders() }.getOrNull() }
+                    val cutoffDeferred = async { runCatching { apiService.getCutoffTime() }.getOrNull() }
+
+                    val res = ordersDeferred.await()
+                    val cutoffRes = cutoffDeferred.await()
+
+                    wakingDetectionJob.cancel()
+
+                    if (res != null && res.isSuccessful && res.body() != null) {
+                        val newOrders = res.body()?.orders ?: emptyList()
+                        val newCutoff = cutoffRes?.body()?.cutoffTime ?: _uiState.value.cutoffTime
+                        val now = System.currentTimeMillis()
+
+                        localDataCache?.put(LocalDataCache.KEY_SELLER_ORDERS, newOrders)
+
+                        _uiState.update {
+                            it.copy(
+                                orders = newOrders,
+                                cutoffTime = newCutoff,
+                                isLoading = false,
+                                isRefreshing = false,
+                                isWakingUp = false,
+                                errorMessage = null,
+                                transientError = null,
+                                lastUpdated = now,
+                                hasLoadedOnce = true
+                            )
+                        }
+                    } else {
+                        val err = res?.errorBody()?.string() ?: "Failed to refresh orders"
+                        _uiState.update { current ->
+                            if (current.hasData) {
+                                current.copy(
+                                    isLoading = false,
+                                    isRefreshing = false,
+                                    isWakingUp = false,
+                                    transientError = "Couldn't refresh data. Showing previously loaded data."
+                                )
+                            } else {
+                                current.copy(
+                                    isLoading = false,
+                                    isRefreshing = false,
+                                    isWakingUp = false,
+                                    errorMessage = err,
+                                    hasLoadedOnce = true
+                                )
+                            }
+                        }
                     }
-                } else {
-                    _uiState.update { it.copy(isRefreshing = false) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message ?: "Failed to refresh orders") }
+                wakingDetectionJob.cancel()
+                _uiState.update { current ->
+                    if (current.hasData) {
+                        current.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            isWakingUp = false,
+                            transientError = "Couldn't refresh data. Showing previously loaded data."
+                        )
+                    } else {
+                        current.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            isWakingUp = false,
+                            errorMessage = e.message ?: "Network error",
+                            hasLoadedOnce = true
+                        )
+                    }
+                }
+            } finally {
+                wakingDetectionJob.cancel()
+                _uiState.update { it.copy(isLoading = false, isRefreshing = false, isWakingUp = false) }
             }
         }
+        activeRefreshJob = job
+        return job
     }
 
     fun loadCutoff() {
@@ -383,6 +490,6 @@ class OrdersPipelineViewModel @Inject constructor(
     }
 
     fun clearMessages() {
-        _uiState.update { it.copy(errorMessage = null, successMessage = null) }
+        _uiState.update { it.copy(errorMessage = null, successMessage = null, transientError = null) }
     }
 }

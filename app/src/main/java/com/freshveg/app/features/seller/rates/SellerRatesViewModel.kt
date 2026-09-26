@@ -16,6 +16,14 @@ import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 
+import com.freshveg.app.core.cache.LocalDataCache
+import com.freshveg.app.core.lifecycle.AppForegroundMonitor
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+
 data class RateItemUiState(
     val product: SellerRateDto,
     val originalPrice: Double,
@@ -44,10 +52,17 @@ data class SellerRatesUiState(
     val hideMasterCatalogue: Boolean = false,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
+    val isWakingUp: Boolean = false,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
-    val successMessage: String? = null
+    val transientError: String? = null,
+    val successMessage: String? = null,
+    val lastUpdated: Long = 0L,
+    val hasLoadedOnce: Boolean = false
 ) {
+    val hasData: Boolean get() = rateItems.isNotEmpty()
+    val isGenuinelyEmpty: Boolean get() = hasLoadedOnce && rateItems.isEmpty() && errorMessage == null
+
     val filteredItems: List<RateItemUiState> get() = rateItems.filter { item ->
         val isInActiveStore = item.product.isInStore || item.product.isCustom || item.originalPrice > 0 || item.currentPrice > 0
         if (!isInActiveStore) return@filter false
@@ -69,11 +84,20 @@ data class SellerRatesUiState(
 @HiltViewModel
 class SellerRatesViewModel @Inject constructor(
     private val apiService: VegApiService,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val localDataCache: LocalDataCache? = null,
+    private val appForegroundMonitor: AppForegroundMonitor? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SellerRatesUiState())
     val uiState = _uiState.asStateFlow()
+
+    private var activeRefreshJob: Job? = null
+
+    companion object {
+        private const val CACHE_KEY_RATES = "seller_rates_card_cache"
+        private const val CACHE_KEY_CATEGORIES = "seller_rates_categories_cache"
+    }
 
     init {
         viewModelScope.launch {
@@ -81,80 +105,149 @@ class SellerRatesViewModel @Inject constructor(
                 _uiState.update { it.copy(hideMasterCatalogue = hide) }
             }
         }
+        restoreFromCache()
+        observeForegroundResume()
         loadRates()
     }
 
-    fun loadRates() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-            try {
-                val code = sessionManager.sellerCode.firstOrNull()
-                val business = sessionManager.role.firstOrNull()
-                _uiState.update { it.copy(sellerCode = code, businessName = business) }
-            } catch (e: Exception) {}
+    private fun restoreFromCache() {
+        val cache = localDataCache ?: return
+        val ratesType = object : TypeToken<List<SellerRateDto>>() {}.type
+        val cachedRates: List<SellerRateDto>? = cache.get(CACHE_KEY_RATES, ratesType)
+        val catType = object : TypeToken<List<CategoryDto>>() {}.type
+        val cachedCats: List<CategoryDto>? = cache.get(CACHE_KEY_CATEGORIES, catType)
 
-            try {
-                val ratesRes = apiService.getSellerRateCard()
-                val catRes = apiService.getCategories()
-
-                if (ratesRes.isSuccessful && ratesRes.body() != null) {
-                    val items = ratesRes.body()!!.map { prod ->
-                        RateItemUiState(
-                            product = prod,
-                            originalPrice = prod.sellingPrice,
-                            currentPrice = prod.sellingPrice,
-                            originalAvailability = prod.isAvailable,
-                            isAvailable = prod.isAvailable
-                        )
-                    }
-                    _uiState.update {
-                        it.copy(
-                            rateItems = items,
-                            categories = catRes.body() ?: emptyList(),
-                            isLoading = false
-                        )
-                    }
-                } else {
-                    _uiState.update { it.copy(isLoading = false, errorMessage = "Failed to load rate card") }
-                }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Network error") }
+        if (cachedRates != null) {
+            val items = cachedRates.map { prod ->
+                RateItemUiState(
+                    product = prod,
+                    originalPrice = prod.sellingPrice,
+                    currentPrice = prod.sellingPrice,
+                    originalAvailability = prod.isAvailable,
+                    isAvailable = prod.isAvailable
+                )
+            }
+            _uiState.update {
+                it.copy(
+                    rateItems = items,
+                    categories = cachedCats ?: it.categories,
+                    lastUpdated = cache.getLastUpdated(CACHE_KEY_RATES)
+                )
             }
         }
     }
 
-    fun refresh() {
+    private fun observeForegroundResume() {
+        val monitor = appForegroundMonitor ?: return
         viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true, errorMessage = null, successMessage = null) }
-            try {
-                apiService.warmUpDatabase()
-            } catch (_: Exception) {}
-            try {
-                val ratesRes = apiService.getSellerRateCard()
-                val catRes = apiService.getCategories()
+            monitor.foregroundResumeEvent.collect { _ ->
+                val cache = localDataCache
+                val isStale = cache?.isStale(CACHE_KEY_RATES) ?: true
+                if (isStale) {
+                    refresh()
+                }
+            }
+        }
+    }
 
-                if (ratesRes.isSuccessful && ratesRes.body() != null) {
-                    val items = ratesRes.body()!!.map { prod ->
-                        RateItemUiState(
-                            product = prod,
-                            originalPrice = prod.sellingPrice,
-                            currentPrice = prod.sellingPrice,
-                            originalAvailability = prod.isAvailable,
-                            isAvailable = prod.isAvailable
-                        )
+    fun loadRates() {
+        fetchRates(isExplicitRefresh = false)
+    }
+
+    fun refresh() {
+        fetchRates(isExplicitRefresh = true)
+    }
+
+    private fun fetchRates(isExplicitRefresh: Boolean) {
+        if (activeRefreshJob?.isActive == true) return
+
+        activeRefreshJob = viewModelScope.launch {
+            if (isExplicitRefresh) {
+                _uiState.update { it.copy(isRefreshing = true, errorMessage = null, transientError = null, successMessage = null) }
+            } else {
+                if (!_uiState.value.hasData) {
+                    _uiState.update { it.copy(isLoading = true, errorMessage = null, transientError = null, successMessage = null) }
+                }
+            }
+
+            try {
+                val code = sessionManager.sellerCode.firstOrNull()
+                val business = sessionManager.role.firstOrNull()
+                _uiState.update { it.copy(sellerCode = code, businessName = business) }
+            } catch (_: Exception) {}
+
+            var wakingTimerJob: Job? = null
+            try {
+                coroutineScope {
+                    wakingTimerJob = launch {
+                        delay(FreshnessConfig.SLOW_CONNECTION_THRESHOLD_MS)
+                        _uiState.update { it.copy(isWakingUp = true) }
                     }
-                    _uiState.update {
-                        it.copy(
-                            rateItems = items,
-                            categories = catRes.body() ?: emptyList(),
-                            isRefreshing = false
-                        )
+
+                    val ratesDeferred = async { apiService.getSellerRateCard() }
+                    val catDeferred = async { apiService.getCategories() }
+
+                    val ratesRes = ratesDeferred.await()
+                    val catRes = catDeferred.await()
+
+                    wakingTimerJob?.cancel()
+
+                    if (ratesRes.isSuccessful && ratesRes.body() != null) {
+                        val rawRates = ratesRes.body()!!
+                        localDataCache?.put(CACHE_KEY_RATES, rawRates)
+                        val cats = catRes.body() ?: emptyList()
+                        localDataCache?.put(CACHE_KEY_CATEGORIES, cats)
+
+                        val items = rawRates.map { prod ->
+                            RateItemUiState(
+                                product = prod,
+                                originalPrice = prod.sellingPrice,
+                                currentPrice = prod.sellingPrice,
+                                originalAvailability = prod.isAvailable,
+                                isAvailable = prod.isAvailable
+                            )
+                        }
+                        _uiState.update {
+                            it.copy(
+                                rateItems = items,
+                                categories = cats,
+                                isLoading = false,
+                                isRefreshing = false,
+                                isWakingUp = false,
+                                errorMessage = null,
+                                transientError = null,
+                                hasLoadedOnce = true,
+                                lastUpdated = System.currentTimeMillis()
+                            )
+                        }
+                    } else {
+                        throw Exception(ratesRes.errorBody()?.string() ?: "Failed to load rate card")
                     }
-                } else {
-                    _uiState.update { it.copy(isRefreshing = false) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message ?: "Network error") }
+                wakingTimerJob?.cancel()
+                val msg = e.message ?: "Failed to reach server. Connecting to database..."
+                _uiState.update { current ->
+                    if (current.hasData) {
+                        current.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            isWakingUp = false,
+                            transientError = "⚡ Connecting to live Mandi... showing cached rates"
+                        )
+                    } else {
+                        current.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            isWakingUp = false,
+                            errorMessage = msg,
+                            hasLoadedOnce = true
+                        )
+                    }
+                }
+            } finally {
+                wakingTimerJob?.cancel()
+                _uiState.update { it.copy(isLoading = false, isRefreshing = false, isWakingUp = false) }
             }
         }
     }
@@ -308,6 +401,6 @@ class SellerRatesViewModel @Inject constructor(
     }
 
     fun clearMessages() {
-        _uiState.update { it.copy(errorMessage = null, successMessage = null) }
+        _uiState.update { it.copy(errorMessage = null, successMessage = null, transientError = null) }
     }
 }

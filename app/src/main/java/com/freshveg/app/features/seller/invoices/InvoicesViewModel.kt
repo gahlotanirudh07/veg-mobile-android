@@ -16,6 +16,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.freshveg.app.core.cache.LocalDataCache
+import com.freshveg.app.core.lifecycle.AppForegroundMonitor
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+
 data class InvoicesUiState(
     val selectedTab: Int = 0, // 0: Generated Invoices, 1: Pending Orders
     val invoices: List<InvoiceSummaryDto> = emptyList(),
@@ -27,10 +35,17 @@ data class InvoicesUiState(
     val selectedSortOrder: String = "NEWEST", // "NEWEST", "OLDEST", "AMOUNT_HIGH", "AMOUNT_LOW"
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
+    val isWakingUp: Boolean = false,
     val isGenerating: Boolean = false,
     val errorMessage: String? = null,
-    val successMessage: String? = null
+    val transientError: String? = null,
+    val successMessage: String? = null,
+    val lastUpdated: Long = 0L,
+    val hasLoadedOnce: Boolean = false
 ) {
+    val hasData: Boolean get() = invoices.isNotEmpty() || pendingOrders.isNotEmpty()
+    val isGenuinelyEmpty: Boolean get() = hasLoadedOnce && invoices.isEmpty() && pendingOrders.isEmpty() && errorMessage == null
+
     val uniqueCustomers: List<String> get() {
         val fromInvoices = invoices.mapNotNull { inv ->
             inv.customer?.businessName?.trim()?.takeIf { it.isNotEmpty() }
@@ -112,14 +127,57 @@ data class InvoicesUiState(
 
 @HiltViewModel
 class InvoicesViewModel @Inject constructor(
-    private val apiService: VegApiService
+    private val apiService: VegApiService,
+    private val localDataCache: LocalDataCache? = null,
+    private val appForegroundMonitor: AppForegroundMonitor? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(InvoicesUiState())
     val uiState = _uiState.asStateFlow()
 
+    private var activeRefreshJob: Job? = null
+
+    companion object {
+        private const val CACHE_KEY_INVOICES = "seller_invoices_cache"
+        private const val CACHE_KEY_PENDING = "seller_pending_invoices_cache"
+    }
+
     init {
+        restoreFromCache()
+        observeForegroundResume()
         loadData()
+    }
+
+    private fun restoreFromCache() {
+        val cache = localDataCache ?: return
+        val invoicesType = object : TypeToken<List<InvoiceSummaryDto>>() {}.type
+        val cachedInvoices: List<InvoiceSummaryDto>? = cache.get(CACHE_KEY_INVOICES, invoicesType)
+
+        val pendingType = object : TypeToken<List<OrderDto>>() {}.type
+        val cachedPending: List<OrderDto>? = cache.get(CACHE_KEY_PENDING, pendingType)
+
+        if (cachedInvoices != null || cachedPending != null) {
+            _uiState.update {
+                it.copy(
+                    invoices = cachedInvoices ?: it.invoices,
+                    pendingOrders = cachedPending ?: it.pendingOrders,
+                    lastUpdated = cache.getLastUpdated(CACHE_KEY_INVOICES)
+                )
+            }
+        }
+    }
+
+    private fun observeForegroundResume() {
+        val monitor = appForegroundMonitor ?: return
+        viewModelScope.launch {
+            monitor.foregroundResumeEvent.collect { _ ->
+                val cache = localDataCache
+                val isStale = cache?.isStale(CACHE_KEY_INVOICES) ?: true
+                if (isStale) {
+                    refresh()
+                }
+            }
+        }
     }
 
     fun selectTab(index: Int) {
@@ -143,41 +201,85 @@ class InvoicesViewModel @Inject constructor(
     }
 
     fun loadData() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            try {
-                val invoicesRes = apiService.getInvoices()
-                val pendingRes = apiService.getPendingInvoices()
-
-                _uiState.update {
-                    it.copy(
-                        invoices = invoicesRes.body()?.invoices ?: emptyList(),
-                        pendingOrders = pendingRes.body()?.orders ?: emptyList(),
-                        isLoading = false
-                    )
-                }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load invoices") }
-            }
-        }
+        fetchInvoices(isExplicitRefresh = false)
     }
 
     fun refresh() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
-            try {
-                val invoicesRes = apiService.getInvoices()
-                val pendingRes = apiService.getPendingInvoices()
+        fetchInvoices(isExplicitRefresh = true)
+    }
 
-                _uiState.update {
-                    it.copy(
-                        invoices = invoicesRes.body()?.invoices ?: emptyList(),
-                        pendingOrders = pendingRes.body()?.orders ?: emptyList(),
-                        isRefreshing = false
-                    )
+    private fun fetchInvoices(isExplicitRefresh: Boolean) {
+        if (activeRefreshJob?.isActive == true) return
+
+        activeRefreshJob = viewModelScope.launch {
+            if (isExplicitRefresh) {
+                _uiState.update { it.copy(isRefreshing = true, errorMessage = null, transientError = null) }
+            } else {
+                if (!_uiState.value.hasData) {
+                    _uiState.update { it.copy(isLoading = true, errorMessage = null, transientError = null) }
+                }
+            }
+
+            var wakingTimerJob: Job? = null
+            try {
+                coroutineScope {
+                    wakingTimerJob = launch {
+                        delay(FreshnessConfig.SLOW_CONNECTION_THRESHOLD_MS)
+                        _uiState.update { it.copy(isWakingUp = true) }
+                    }
+
+                    val invoicesDeferred = async { apiService.getInvoices() }
+                    val pendingDeferred = async { apiService.getPendingInvoices() }
+
+                    val invoicesRes = invoicesDeferred.await()
+                    val pendingRes = pendingDeferred.await()
+
+                    wakingTimerJob?.cancel()
+
+                    val newInvoices = invoicesRes.body()?.invoices ?: emptyList()
+                    val newPending = pendingRes.body()?.orders ?: emptyList()
+
+                    localDataCache?.put(CACHE_KEY_INVOICES, newInvoices)
+                    localDataCache?.put(CACHE_KEY_PENDING, newPending)
+
+                    _uiState.update {
+                        it.copy(
+                            invoices = newInvoices,
+                            pendingOrders = newPending,
+                            isLoading = false,
+                            isRefreshing = false,
+                            isWakingUp = false,
+                            errorMessage = null,
+                            transientError = null,
+                            hasLoadedOnce = true,
+                            lastUpdated = System.currentTimeMillis()
+                        )
+                    }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message ?: "Failed to refresh invoices") }
+                wakingTimerJob?.cancel()
+                val msg = e.message ?: "Failed to reach server. Connecting to database..."
+                _uiState.update { current ->
+                    if (current.hasData) {
+                        current.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            isWakingUp = false,
+                            transientError = "⚡ Connecting to live Mandi... showing cached data"
+                        )
+                    } else {
+                        current.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            isWakingUp = false,
+                            errorMessage = msg,
+                            hasLoadedOnce = true
+                        )
+                    }
+                }
+            } finally {
+                wakingTimerJob?.cancel()
+                _uiState.update { it.copy(isLoading = false, isRefreshing = false, isWakingUp = false) }
             }
         }
     }
@@ -289,6 +391,6 @@ class InvoicesViewModel @Inject constructor(
     }
 
     fun clearMessages() {
-        _uiState.update { it.copy(errorMessage = null, successMessage = null) }
+        _uiState.update { it.copy(errorMessage = null, successMessage = null, transientError = null) }
     }
 }

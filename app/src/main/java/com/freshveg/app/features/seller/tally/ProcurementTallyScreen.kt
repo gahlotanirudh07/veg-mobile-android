@@ -1,5 +1,6 @@
 package com.freshveg.app.features.seller.tally
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,6 +39,7 @@ fun ProcurementTallyScreen(
 
     var isAddExpenseOpen by remember { mutableStateOf(false) }
     var isAddPurchaseOpen by remember { mutableStateOf(false) }
+    var isShareSheetOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
@@ -76,8 +79,8 @@ fun ProcurementTallyScreen(
                     }
                 },
                 actions = {
-                    // WhatsApp Share Tally
-                    IconButton(onClick = { viewModel.shareTallyOnWhatsApp(context) }) {
+                    // WhatsApp Share Tally (opens 2-method sheet)
+                    IconButton(onClick = { isShareSheetOpen = true }) {
                         Icon(
                             Icons.Default.Share,
                             contentDescription = "Share Tally",
@@ -165,7 +168,7 @@ fun ProcurementTallyScreen(
                     when (uiState.selectedTab) {
                         0 -> TallyTabContent(
                             tallyData = uiState.tallyData,
-                            onShareWhatsApp = { viewModel.shareTallyOnWhatsApp(context) }
+                            onShareWhatsApp = { isShareSheetOpen = true }
                         )
                         1 -> InwardPurchasesTabContent(
                             purchases = uiState.purchases,
@@ -185,6 +188,20 @@ fun ProcurementTallyScreen(
     }
 
     // Bottom Sheets
+    if (isShareSheetOpen) {
+        ShareTallyBottomSheet(
+            onDismiss = { isShareSheetOpen = false },
+            onSelectMethod1 = {
+                isShareSheetOpen = false
+                viewModel.shareMethod1ItemBreakdown(context)
+            },
+            onSelectMethod2 = {
+                isShareSheetOpen = false
+                viewModel.shareMethod2RestaurantWise(context)
+            }
+        )
+    }
+
     if (isAddExpenseOpen) {
         AddExpenseBottomSheet(
             onDismiss = { isAddExpenseOpen = false },
@@ -254,7 +271,8 @@ fun TallyTabContent(
                     ) {
                         Column {
                             Text("Total Morning Demand", fontWeight = FontWeight.Bold, color = ForestGreenPrimary)
-                            Text("${tallyData?.totalOrders ?: 0} Orders • ${items.size} Produce Varieties", style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
+                            val totalItemsCount = if ((tallyData?.totalItemsCount ?: 0) > 0) tallyData!!.totalItemsCount else items.sumOf { it.orderCount }
+                            Text("${tallyData?.totalOrders ?: 0} Orders • $totalItemsCount Items • ${items.size} Varieties", style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
                         }
 
                         Button(
@@ -340,18 +358,32 @@ fun TallyItemRowCard(item: ProcurementTallyItemDto) {
             }
 
             // Buyer Breakdown Chips
-            if (item.buyerNames.isNotEmpty()) {
+            val hasBreakdown = item.buyerBreakdown.isNotEmpty()
+            if (hasBreakdown || item.buyerNames.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Divider(color = Color(0xFFEEEEEE), thickness = 0.8.dp)
+                HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 0.8.dp)
                 Spacer(modifier = Modifier.height(6.dp))
+
+                val breakdownStr = if (hasBreakdown) {
+                    item.buyerBreakdown.joinToString(" + ") { b ->
+                        val q = if (b.quantity % 1.0 == 0.0) "${b.quantity.toInt()}" else "${b.quantity}"
+                        "$q ${b.unitType} (${b.buyerName})"
+                    }
+                } else {
+                    item.buyerNames.joinToString(", ")
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Text("Ordered by: ", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                     Text(
-                        text = item.buyerNames.joinToString(", "),
+                        if (hasBreakdown) "Breakdown: " else "Ordered by: ",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = breakdownStr,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color.DarkGray
@@ -677,6 +709,157 @@ fun ProfitLossTabContent(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 5. SHARE TALLY BOTTOM SHEET (2 METHODS)
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ShareTallyBottomSheet(
+    onDismiss: () -> Unit,
+    onSelectMethod1: () -> Unit,
+    onSelectMethod2: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column {
+                Text(
+                    text = "Share Morning Order Slip",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MainInk
+                )
+                Text(
+                    text = "Choose WhatsApp slip format to send to mandi / suppliers",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = InkSecondary
+                )
+            }
+
+            // Option 1: Item Breakdown Slip
+            Card(
+                onClick = onSelectMethod1,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F8F4)),
+                border = BorderStroke(1.dp, Color(0xFFCCE7D3))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(ForestGreenPrimary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Calculate,
+                            contentDescription = null,
+                            tint = ForestGreenPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Method 1: Produce Breakdown",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = MainInk
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "आइटम अनुसार जोड़ (जैसे: आलू ➜ 1kg Rest A + 2kg Rest B = 3kg)",
+                            fontSize = 12.sp,
+                            color = InkSecondary,
+                            lineHeight = 16.sp
+                        )
+                    }
+
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = ForestGreenPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Option 2: Restaurant-Wise Summary Slip
+            Card(
+                onClick = onSelectMethod2,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF0F766E).copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Storefront,
+                            contentDescription = null,
+                            tint = Color(0xFF0F766E),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Method 2: Restaurant-Wise Summary",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = MainInk
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "रेस्टोरेंट अनुसार सूची (जैसे: Hotel A ➜ 1) आलू = 2kg, 2) भिंडी = 3kg)",
+                            fontSize = 12.sp,
+                            color = InkSecondary,
+                            lineHeight = 16.sp
+                        )
+                    }
+
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = Color(0xFF0F766E),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }

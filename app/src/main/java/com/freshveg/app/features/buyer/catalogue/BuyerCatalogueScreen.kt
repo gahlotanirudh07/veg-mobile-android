@@ -104,6 +104,15 @@ fun BuyerCatalogueScreen(
         }
     }
 
+    LaunchedEffect(state.transientError) {
+        state.transientError?.let {
+            snackbarHostState.showSnackbar(
+                message = it,
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = CatalogueCanvas,
@@ -447,12 +456,83 @@ fun BuyerCatalogueScreen(
                     }
                 }
 
+                // Waking up indicator banner when cold start takes > 2.5s
+                if (state.isWakingUp) {
+                    item {
+                        Surface(
+                            color = Color(0xFFFEF3C7),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color(0xFFF59E0B)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color(0xFFD97706)
+                                )
+                                Text(
+                                    text = "Connecting to live Mandi database...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF92400E)
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Loading Shimmer Skeletons or Product List
-                if (state.isLoading && state.products.isEmpty()) {
+                if (state.isLoading && !state.hasData) {
                     items(6) {
                         ProduceRowSkeleton(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                     }
-                } else if (state.filteredProducts.isEmpty()) {
+                } else if (!state.hasData && state.errorMessage != null) {
+                    // ERROR STATE (NOT EMPTY STATE!)
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(36.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Outlined.CloudOff,
+                                    contentDescription = null,
+                                    tint = Color(0xFFDC2626),
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Unable to connect to live data",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = InkPrimary
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = state.errorMessage ?: "Database waking up or offline. Please retry.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = InkSecondary,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { viewModel.refresh(isManualPull = true) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = BrandGreenPrimary)
+                                ) {
+                                    Text("Retry Connection", color = Color.White)
+                                }
+                            }
+                        }
+                    }
+                } else if (state.isGenuinelyEmpty || (state.hasLoadedOnce && state.filteredProducts.isEmpty() && state.searchQuery.isNotEmpty())) {
+                    // GENUINE EMPTY STATE
                     item {
                         Box(
                             modifier = Modifier
@@ -469,7 +549,7 @@ fun BuyerCatalogueScreen(
                                 )
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Text(
-                                    text = stringResource(R.string.common_no_data),
+                                    text = if (state.searchQuery.isNotEmpty()) "No matching produce found" else stringResource(R.string.common_no_data),
                                     style = CatalogueTypography.sectionTitle,
                                     color = InkPrimary
                                 )

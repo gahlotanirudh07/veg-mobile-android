@@ -172,39 +172,128 @@ class ProcurementTallyViewModel @Inject constructor(
         }
     }
 
-    fun shareTallyOnWhatsApp(context: Context) {
-        val tally = _uiState.value.tallyData?.tally ?: return
+    fun shareMethod1ItemBreakdown(context: Context) {
+        val tallyData = _uiState.value.tallyData ?: return
+        val tally = tallyData.tally
         if (tally.isEmpty()) return
 
         val date = _uiState.value.selectedDate
+        val totalOrders = tallyData.totalOrders
+        val totalItems = if (tallyData.totalItemsCount > 0) tallyData.totalItemsCount else tally.sumOf { it.orderCount }
+        val varieties = tally.size
+
         val sb = StringBuilder()
         sb.append("📋 *MANDIEXPRESS — सुबह की मंडी खरीद पर्ची*\n")
         sb.append("📅 *तारीख:* $date\n")
-        sb.append("📦 *कुल सब्जियां:* ${tally.size} आइटम्स\n")
-        sb.append("━━━━━━━━━━━━━━━━━━\n\n")
+        sb.append("📦 *कुल ऑर्डर्स:* $totalOrders  •  *कुल आइटम्स:* $totalItems ($varieties वैरायटी)\n")
+        sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
 
-        tally.forEach { item ->
+        tally.forEachIndexed { index, item ->
             val emoji = ProduceVisualUtils.getProduceEmoji(item.productName, item.hindiName)
             val title = if (!item.hindiName.isNullOrEmpty()) "${item.productName} (${item.hindiName})" else item.productName
-            val qty = "${item.totalOrderedQuantity} ${item.unitType}"
-            val buyers = item.buyerNames.joinToString(", ")
-            sb.append("$emoji *$title* ➜ *$qty*\n")
-            if (buyers.isNotEmpty()) {
-                sb.append("   ↳ 🏨 _${buyers}_\n")
+            val formattedTotal = if (item.totalOrderedQuantity % 1.0 == 0.0) "${item.totalOrderedQuantity.toInt()}" else "${item.totalOrderedQuantity}"
+            val totalQty = "$formattedTotal ${item.unitType}"
+
+            val breakdownStr = if (item.buyerBreakdown.isNotEmpty()) {
+                item.buyerBreakdown.joinToString(" + ") { b ->
+                    val q = if (b.quantity % 1.0 == 0.0) "${b.quantity.toInt()}" else "${b.quantity}"
+                    "$q ${b.unitType} (${b.buyerName})"
+                }
+            } else if (item.buyerNames.isNotEmpty()) {
+                item.buyerNames.joinToString(" + ") { name ->
+                    "${name}"
+                }
+            } else {
+                ""
+            }
+
+            if (breakdownStr.isNotEmpty()) {
+                sb.append("${index + 1}) $emoji *$title* ➜ $breakdownStr = *$totalQty*\n\n")
+            } else {
+                sb.append("${index + 1}) $emoji *$title* ➜ *$totalQty*\n\n")
             }
         }
 
-        sb.append("\n━━━━━━━━━━━━━━━━━━\n")
+        sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
         sb.append("🚚 MandiExpress Procurement Management System")
 
+        dispatchShareIntent(context, sb.toString(), "Share Morning Procurement Tally (Item Breakdown)")
+    }
+
+    fun shareMethod2RestaurantWise(context: Context) {
+        val tallyData = _uiState.value.tallyData ?: return
+        val date = _uiState.value.selectedDate
+
+        val sb = StringBuilder()
+        sb.append("📋 *MANDIEXPRESS — रेस्टोरेंट अनुसार ऑर्डर पर्ची*\n")
+        sb.append("📅 *तारीख:* $date\n")
+
+        // Use byRestaurant from backend if present, else synthesize from tally buyerBreakdown
+        val restaurants: List<RestaurantTallyDto> = if (tallyData.byRestaurant.isNotEmpty()) {
+            tallyData.byRestaurant
+        } else {
+            // Synthesize client-side from buyerBreakdown
+            val map = mutableMapOf<String, MutableList<RestaurantOrderItemDto>>()
+            tallyData.tally.forEach { item ->
+                item.buyerBreakdown.forEach { b ->
+                    val list = map.getOrPut(b.buyerName) { mutableListOf() }
+                    list.add(
+                        RestaurantOrderItemDto(
+                            productId = item.productId,
+                            productName = item.productName,
+                            hindiName = item.hindiName,
+                            quantity = b.quantity,
+                            unitType = b.unitType
+                        )
+                    )
+                }
+            }
+            map.map { (name, items) ->
+                RestaurantTallyDto(
+                    buyerId = name,
+                    buyerName = name,
+                    itemsCount = items.size,
+                    items = items
+                )
+            }
+        }
+
+        if (restaurants.isEmpty()) return
+
+        val totalOrders = tallyData.totalOrders
+        sb.append("📦 *कुल ऑर्डर्स:* $totalOrders  •  *कुल रेस्टोरेंट:* ${restaurants.size}\n")
+        sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
+
+        restaurants.forEach { r ->
+            sb.append("🏨 *${r.buyerName}* (${r.items.size} आइटम्स):\n")
+            r.items.forEachIndexed { idx, item ->
+                val emoji = ProduceVisualUtils.getProduceEmoji(item.productName, item.hindiName)
+                val title = if (!item.hindiName.isNullOrEmpty()) "${item.productName} (${item.hindiName})" else item.productName
+                val q = if (item.quantity % 1.0 == 0.0) "${item.quantity.toInt()}" else "${item.quantity}"
+                sb.append("  ${idx + 1}) $emoji $title = *$q ${item.unitType}*\n")
+            }
+            sb.append("\n")
+        }
+
+        sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+        sb.append("🚚 MandiExpress Procurement Management System")
+
+        dispatchShareIntent(context, sb.toString(), "Share Restaurant Wise Summary")
+    }
+
+    private fun dispatchShareIntent(context: Context, text: String, title: String) {
         val sendIntent = Intent().apply {
             action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, sb.toString())
+            putExtra(Intent.EXTRA_TEXT, text)
             type = "text/plain"
         }
-        val shareIntent = Intent.createChooser(sendIntent, "Share Morning Procurement Tally")
+        val shareIntent = Intent.createChooser(sendIntent, title)
         shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(shareIntent)
+    }
+
+    fun shareTallyOnWhatsApp(context: Context) {
+        shareMethod1ItemBreakdown(context)
     }
 
     fun clearMessages() {

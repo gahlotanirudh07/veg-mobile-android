@@ -134,13 +134,13 @@ class BuyerCatalogueAutomationTest {
         val tomato = mockProducts[0] // KG unit -> 5.0 kg step
         val coriander = mockProducts[2] // BUNDLE unit -> 1.0 step
 
-        // Increment Tomato (first add -> 5.0 kg)
+        // Increment Tomato (first add -> 1.0 kg)
         viewModel.incrementQuantity(tomato)
-        assertEquals(5.0, viewModel.uiState.value.cart[tomato.id])
+        assertEquals(1.0, viewModel.uiState.value.cart[tomato.id])
 
-        // Increment again (+5.0 kg -> 10.0 kg)
+        // Increment again (+1.0 kg -> 2.0 kg)
         viewModel.incrementQuantity(tomato)
-        assertEquals(10.0, viewModel.uiState.value.cart[tomato.id])
+        assertEquals(2.0, viewModel.uiState.value.cart[tomato.id])
 
         // Add Coriander (BUNDLE -> 1.0 step)
         viewModel.incrementQuantity(coriander)
@@ -148,8 +148,8 @@ class BuyerCatalogueAutomationTest {
 
         // Verify cart calculations
         assertEquals(2, viewModel.uiState.value.cartItemCount)
-        // (10 kg * ₹35) + (1 bundle * ₹15) = 350 + 15 = ₹365
-        assertEquals(365.0, viewModel.uiState.value.cartEstimatedTotal, 0.001)
+        // (2 kg * ₹35) + (1 bundle * ₹15) = 70 + 15 = ₹85
+        assertEquals(85.0, viewModel.uiState.value.cartEstimatedTotal, 0.001)
 
         // Decrement Coriander (1.0 - 1.0 = 0.0 -> removed)
         viewModel.decrementQuantity(coriander)

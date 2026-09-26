@@ -155,7 +155,7 @@ class AuthViewModel @Inject constructor(
                     _uiState.update { it.copy(isLoading = false, isSuccess = true, isSeller = isSeller) }
                     onSuccess(role, isSeller, isBuyer)
                 } else {
-                    _uiState.update { it.copy(isLoading = false, errorMessage = res.errorBody()?.string() ?: "Login failed") }
+                    _uiState.update { it.copy(isLoading = false, errorMessage = extractErrorMessage(res.errorBody()?.string()) ?: "Login failed") }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Connection error") }
@@ -217,7 +217,7 @@ class AuthViewModel @Inject constructor(
                     _uiState.update { it.copy(isLoading = false, isSuccess = true, isSeller = false) }
                     onSuccess()
                 } else {
-                    _uiState.update { it.copy(isLoading = false, errorMessage = res.errorBody()?.string() ?: "Buyer Registration failed") }
+                    _uiState.update { it.copy(isLoading = false, errorMessage = extractErrorMessage(res.errorBody()?.string()) ?: "Buyer Registration failed") }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Connection error") }
@@ -277,11 +277,23 @@ class AuthViewModel @Inject constructor(
                     _uiState.update { it.copy(isLoading = false, isSuccess = true, isSeller = true) }
                     onSuccess()
                 } else {
-                    _uiState.update { it.copy(isLoading = false, errorMessage = res.errorBody()?.string() ?: "Seller Registration failed") }
+                    _uiState.update { it.copy(isLoading = false, errorMessage = extractErrorMessage(res.errorBody()?.string()) ?: "Seller Registration failed") }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Connection error") }
             }
+        }
+    }
+
+    private fun extractErrorMessage(rawJson: String?): String {
+        if (rawJson.isNullOrBlank()) return "An error occurred. Please try again."
+        return try {
+            val json = org.json.JSONObject(rawJson)
+            if (json.has("error")) json.getString("error")
+            else if (json.has("message")) json.getString("message")
+            else rawJson
+        } catch (_: Exception) {
+            rawJson
         }
     }
 }

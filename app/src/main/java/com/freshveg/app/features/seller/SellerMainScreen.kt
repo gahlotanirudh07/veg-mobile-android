@@ -44,6 +44,8 @@ fun SellerMainScreen(
     onLogout: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    var ordersInitialStatus by remember { mutableStateOf<String?>(null) }
+    var ordersInitialDateFilter by remember { mutableStateOf<String?>(null) }
     val view = LocalView.current
     val homeViewModel: SellerHomeViewModel = hiltViewModel()
     val homeUiState by homeViewModel.uiState.collectAsState()
@@ -92,6 +94,8 @@ fun SellerMainScreen(
                     selected = selectedTab == 1,
                     onClick = {
                         triggerHaptic()
+                        ordersInitialStatus = null
+                        ordersInitialDateFilter = null
                         selectedTab = 1
                     },
                     icon = {
@@ -220,6 +224,14 @@ fun SellerMainScreen(
                     hideMasterCatalogue = hideMasterCatalogue,
                     onNavigateToOrders = {
                         triggerHaptic()
+                        ordersInitialStatus = null
+                        ordersInitialDateFilter = null
+                        selectedTab = 1
+                    },
+                    onNavigateToActiveOrders = {
+                        triggerHaptic()
+                        ordersInitialStatus = "PENDING"
+                        ordersInitialDateFilter = "ALL"
                         selectedTab = 1
                     },
                     onNavigateToRates = {
@@ -240,7 +252,9 @@ fun SellerMainScreen(
                     onNavigateBack = {
                         triggerHaptic()
                         selectedTab = 0
-                    }
+                    },
+                    initialStatus = ordersInitialStatus,
+                    initialDateFilter = ordersInitialDateFilter
                 )
                 2 -> SellerRatesScreen(
                     onNavigateBack = {

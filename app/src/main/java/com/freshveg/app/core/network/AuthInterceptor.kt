@@ -1,4 +1,4 @@
-﻿package com.freshveg.app.core.network
+package com.freshveg.app.core.network
 
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
@@ -14,10 +14,14 @@ class AuthInterceptor @Inject constructor(
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
-        val token = runBlocking { sessionManager.accessToken.firstOrNull() }
+        val path = originalRequest.url.encodedPath
+        val isPublicAuth = path.contains("/auth/login") ||
+                           path.contains("/auth/register") ||
+                           path.contains("/auth/otp")
 
+        val token = runBlocking { sessionManager.accessToken.firstOrNull() }
         val requestBuilder = originalRequest.newBuilder()
-        if (!token.isNullOrEmpty()) {
+        if (!token.isNullOrEmpty() && !isPublicAuth) {
             requestBuilder.addHeader("Authorization", "Bearer $token")
         }
 

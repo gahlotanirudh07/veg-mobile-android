@@ -2,6 +2,7 @@ package com.freshveg.app.features.seller.home
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -35,6 +36,7 @@ fun SellerHomeScreen(
     totalSalesToday: Double = 0.0,
     hideMasterCatalogue: Boolean = false,
     onNavigateToOrders: () -> Unit,
+    onNavigateToActiveOrders: () -> Unit = onNavigateToOrders,
     onNavigateToRates: () -> Unit,
     onNavigateToStore: () -> Unit = {},
     onNavigateToKhata: () -> Unit,
@@ -135,7 +137,13 @@ fun SellerHomeScreen(
                     )
 
                     // Active Orders
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onNavigateToActiveOrders() }
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
                         Text(
                             text = "Active Orders",
                             style = MaterialTheme.typography.labelSmall,
@@ -326,7 +334,7 @@ fun SellerHomeScreen(
             ) {
                 // Orders Pipeline Card
                 Surface(
-                    onClick = onNavigateToOrders,
+                    onClick = if (newOrdersCount > 0) onNavigateToActiveOrders else onNavigateToOrders,
                     modifier = Modifier
                         .weight(1f)
                         .bounceClick(),

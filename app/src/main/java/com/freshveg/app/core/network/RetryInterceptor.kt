@@ -15,8 +15,6 @@ class RetryInterceptor @Inject constructor() : Interceptor {
 
     companion object {
         private const val TAG = "RetryInterceptor"
-        private const val MAX_RETRIES = 3
-        private const val INITIAL_DELAY_MS = 1500L
     }
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -24,20 +22,33 @@ class RetryInterceptor @Inject constructor() : Interceptor {
         var response: Response? = null
         var lastException: IOException? = null
         var tryCount = 0
+        val maxRetries = NetworkConfig.maxRetries
 
-        while (tryCount < MAX_RETRIES) {
+        while (tryCount < maxRetries) {
             tryCount++
             try {
                 response?.close()
                 response = chain.proceed(request)
 
+                // Success or non-retryable client error (4xx except 429) -> return immediately
                 if (response.isSuccessful || (response.code in 400..499 && response.code != 429)) {
                     return response
                 }
 
-                if (response.code in listOf(502, 503, 504, 429) && tryCount < MAX_RETRIES) {
-                    Log.w(TAG, "Server returned HTTP ${response.code}. Retrying in ${INITIAL_DELAY_MS * tryCount}ms (attempt $tryCount of $MAX_RETRIES)...")
-                    Thread.sleep(INITIAL_DELAY_MS * tryCount)
+                // If transient server error (502, 503, 504, 429) and retries remain -> backoff & retry
+                if (response.code in NetworkConfig.retryableStatusCodes && tryCount < maxRetries) {
+                    val serverRetryAfterMs = response.header("Retry-After")?.toLongOrNull()?.let { it * 1000L }
+                    val exponentialBackoffMs = (NetworkConfig.initialDelayMs * (1L shl (tryCount - 1)))
+                        .coerceAtMost(NetworkConfig.maxDelayMs)
+                    val delayMs = serverRetryAfterMs ?: exponentialBackoffMs
+
+                    Log.w(TAG, "Transient HTTP ${response.code} (DB/Server waking). Retrying in ${delayMs}ms (attempt $tryCount of $maxRetries)...")
+                    try {
+                        Thread.sleep(delayMs)
+                    } catch (ie: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        return response
+                    }
                     continue
                 }
 
@@ -45,10 +56,12 @@ class RetryInterceptor @Inject constructor() : Interceptor {
             } catch (e: IOException) {
                 lastException = e
                 if (e is SocketTimeoutException || e is ConnectException || e is UnknownHostException) {
-                    if (tryCount < MAX_RETRIES) {
-                        Log.w(TAG, "Network transient error (${e.javaClass.simpleName}). Retrying in ${INITIAL_DELAY_MS * tryCount}ms (attempt $tryCount of $MAX_RETRIES)...")
+                    if (tryCount < maxRetries) {
+                        val delayMs = (NetworkConfig.initialDelayMs * (1L shl (tryCount - 1)))
+                            .coerceAtMost(NetworkConfig.maxDelayMs)
+                        Log.w(TAG, "Transient network error (${e.javaClass.simpleName}). Retrying in ${delayMs}ms (attempt $tryCount of $maxRetries)...")
                         try {
-                            Thread.sleep(INITIAL_DELAY_MS * tryCount)
+                            Thread.sleep(delayMs)
                         } catch (ie: InterruptedException) {
                             Thread.currentThread().interrupt()
                             throw e
@@ -60,6 +73,6 @@ class RetryInterceptor @Inject constructor() : Interceptor {
             }
         }
 
-        return response ?: throw (lastException ?: IOException("Request failed after $MAX_RETRIES attempts"))
+        return response ?: throw (lastException ?: IOException("Request failed after $maxRetries attempts"))
     }
 }

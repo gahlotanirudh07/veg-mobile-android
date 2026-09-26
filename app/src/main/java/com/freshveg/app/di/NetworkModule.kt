@@ -64,8 +64,9 @@ object NetworkModule {
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             })
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(20, TimeUnit.SECONDS)
+            .connectTimeout(com.freshveg.app.core.network.NetworkConfig.connectTimeoutSeconds, TimeUnit.SECONDS)
+            .readTimeout(com.freshveg.app.core.network.NetworkConfig.readTimeoutSeconds, TimeUnit.SECONDS)
+            .writeTimeout(com.freshveg.app.core.network.NetworkConfig.writeTimeoutSeconds, TimeUnit.SECONDS)
             .build()
     }
 

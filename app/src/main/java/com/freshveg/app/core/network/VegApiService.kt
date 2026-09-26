@@ -586,11 +586,35 @@ data class TallyEnvelopeResponse(
     val data: ProcurementTallyData
 )
 
+data class BuyerItemBreakdownDto(
+    val buyerId: String = "",
+    val buyerName: String = "",
+    val quantity: Double = 0.0,
+    val unitType: String = "KG"
+)
+
+data class RestaurantOrderItemDto(
+    val productId: String = "",
+    val productName: String = "",
+    val hindiName: String? = null,
+    val quantity: Double = 0.0,
+    val unitType: String = "KG"
+)
+
+data class RestaurantTallyDto(
+    val buyerId: String = "",
+    val buyerName: String = "",
+    val itemsCount: Int = 0,
+    val items: List<RestaurantOrderItemDto> = emptyList()
+)
+
 data class ProcurementTallyData(
     val targetDate: String,
     val totalOrders: Int,
     val distinctItemsCount: Int,
-    val tally: List<ProcurementTallyItemDto>
+    val totalItemsCount: Int = 0,
+    val tally: List<ProcurementTallyItemDto>,
+    val byRestaurant: List<RestaurantTallyDto> = emptyList()
 )
 
 data class ProcurementTallyItemDto(
@@ -603,7 +627,8 @@ data class ProcurementTallyItemDto(
     val lastBuyingPrice: Double? = null,
     val totalOrderedQuantity: Double = 0.0,
     val orderCount: Int = 0,
-    val buyerNames: List<String> = emptyList()
+    val buyerNames: List<String> = emptyList(),
+    val buyerBreakdown: List<BuyerItemBreakdownDto> = emptyList()
 )
 
 data class PurchasesEnvelopeResponse(

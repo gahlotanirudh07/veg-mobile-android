@@ -11,6 +11,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.freshveg.app.core.cache.LocalDataCache
+import com.freshveg.app.core.lifecycle.AppForegroundMonitor
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+
 data class BuyerCatalogueUiState(
     val products: List<ProductDto> = emptyList(),
     val categories: List<CategoryDto> = emptyList(),
@@ -24,10 +32,17 @@ data class BuyerCatalogueUiState(
     val isCartOpen: Boolean = false,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
+    val isWakingUp: Boolean = false,
     val isPlacingOrder: Boolean = false,
     val errorMessage: String? = null,
+    val transientError: String? = null,
+    val lastUpdated: Long = 0L,
+    val hasLoadedOnce: Boolean = false,
     val orderSuccessDto: OrderDto? = null
 ) {
+    val hasData: Boolean get() = products.isNotEmpty()
+    val isGenuinelyEmpty: Boolean get() = hasLoadedOnce && products.isEmpty() && errorMessage == null
+
     val filteredProducts: List<ProductDto> get() {
         var list = products.filter { it.isAvailable }
         if (selectedCategoryId != "ALL") {
@@ -61,15 +76,68 @@ data class BuyerCatalogueUiState(
 @HiltViewModel
 class BuyerCatalogueViewModel @Inject constructor(
     private val apiService: VegApiService,
+    private val localDataCache: LocalDataCache? = null,
+    private val appForegroundMonitor: AppForegroundMonitor? = null,
     private val mandiSocketManager: MandiSocketManager? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BuyerCatalogueUiState())
     val uiState = _uiState.asStateFlow()
 
+    private var activeRefreshJob: Job? = null
+
     init {
-        loadStorefront()
+        restoreFromLocalCache()
+        loadStorefront(silent = _uiState.value.hasData)
         listenToSocketEvents()
+        listenToAppForegroundResume()
+    }
+
+    private fun restoreFromLocalCache() {
+        val cache = localDataCache ?: return
+        val cachedProducts: List<ProductDto>? = cache.get(
+            LocalDataCache.KEY_BUYER_PRODUCTS,
+            object : TypeToken<List<ProductDto>>() {}.type
+        )
+        val cachedCategories: List<CategoryDto>? = cache.get(
+            LocalDataCache.KEY_BUYER_CATEGORIES,
+            object : TypeToken<List<CategoryDto>>() {}.type
+        )
+        val cachedSeller: ConnectedSellerDto? = cache.get(
+            LocalDataCache.KEY_BUYER_CONNECTED_SELLER,
+            ConnectedSellerDto::class.java
+        )
+        val cachedCutoff: String? = cache.get(
+            LocalDataCache.KEY_BUYER_CUTOFF,
+            String::class.java
+        )
+
+        if (!cachedProducts.isNullOrEmpty()) {
+            _uiState.update {
+                it.copy(
+                    products = cachedProducts,
+                    categories = cachedCategories ?: it.categories,
+                    connectedSeller = cachedSeller ?: it.connectedSeller,
+                    cutoffTime = cachedCutoff ?: it.cutoffTime,
+                    lastUpdated = cache.getLastUpdated(LocalDataCache.KEY_BUYER_PRODUCTS),
+                    hasLoadedOnce = true
+                )
+            }
+        }
+    }
+
+    private fun listenToAppForegroundResume() {
+        val monitor = appForegroundMonitor ?: return
+        viewModelScope.launch {
+            monitor.appResumedEvents.collect {
+                // If data is older than stale threshold (5 min), trigger background refresh
+                val cache = localDataCache
+                val isStale = cache?.isStale(LocalDataCache.KEY_BUYER_PRODUCTS) ?: true
+                if (isStale) {
+                    refresh(isManualPull = false, silent = true)
+                }
+            }
+        }
     }
 
     private fun listenToSocketEvents() {
@@ -86,70 +154,129 @@ class BuyerCatalogueViewModel @Inject constructor(
     }
 
     fun loadStorefront(silent: Boolean = false) {
-        viewModelScope.launch {
-            if (!silent) {
-                _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            }
-            try {
-                val productsRes = apiService.getProducts()
-                val categoriesRes = apiService.getCategories()
-                val sellerRes = apiService.getConnectedSeller()
-                val cutoffRes = apiService.getCutoffTime()
-                val frequentRes = apiService.getBuyerFrequentItems()
-                val lastOrderRes = apiService.getBuyerLastOrder()
-
-                _uiState.update {
-                    it.copy(
-                        products = productsRes.body() ?: emptyList(),
-                        categories = categoriesRes.body() ?: emptyList(),
-                        connectedSeller = sellerRes.body()?.data,
-                        cutoffTime = cutoffRes.body()?.cutoffTime ?: "03:00 AM",
-                        frequentItems = frequentRes.body()?.frequentItems ?: emptyList(),
-                        lastOrder = lastOrderRes.body()?.lastOrder,
-                        isLoading = false
-                    )
-                }
-            } catch (e: Exception) {
-                if (!silent) {
-                    _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load catalog") }
-                }
-            }
-        }
+        refresh(isManualPull = false, silent = silent)
     }
 
-    fun refresh() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true) }
+    fun refresh(isManualPull: Boolean = true, silent: Boolean = false): Job {
+        val existing = activeRefreshJob
+        if (existing != null && existing.isActive) {
+            return existing
+        }
+
+        val job = viewModelScope.launch {
+            val hasData = _uiState.value.hasData
+            if (!hasData && !silent) {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, isWakingUp = false) }
+            } else {
+                _uiState.update { it.copy(isRefreshing = true, transientError = null) }
+            }
+
+            // Detect database waking (> 2.5s) to provide responsive feedback
+            val wakingDetectionJob = launch {
+                delay(FreshnessConfig.slowConnectionThresholdMs)
+                _uiState.update { it.copy(isWakingUp = true) }
+            }
+
             try {
-                // Pre-warm database in case serverless PostgreSQL was asleep
-                try {
-                    apiService.warmUpDatabase()
-                } catch (_: Exception) {}
+                coroutineScope {
+                    val productsDeferred = async { runCatching { apiService.getProducts() }.getOrNull() }
+                    val categoriesDeferred = async { runCatching { apiService.getCategories() }.getOrNull() }
+                    val sellerDeferred = async { runCatching { apiService.getConnectedSeller() }.getOrNull() }
+                    val cutoffDeferred = async { runCatching { apiService.getCutoffTime() }.getOrNull() }
+                    val frequentDeferred = async { runCatching { apiService.getBuyerFrequentItems() }.getOrNull() }
+                    val lastOrderDeferred = async { runCatching { apiService.getBuyerLastOrder() }.getOrNull() }
 
-                val productsRes = apiService.getProducts()
-                val categoriesRes = apiService.getCategories()
-                val sellerRes = apiService.getConnectedSeller()
-                val cutoffRes = apiService.getCutoffTime()
-                val frequentRes = apiService.getBuyerFrequentItems()
-                val lastOrderRes = apiService.getBuyerLastOrder()
+                    val productsRes = productsDeferred.await()
+                    val categoriesRes = categoriesDeferred.await()
+                    val sellerRes = sellerDeferred.await()
+                    val cutoffRes = cutoffDeferred.await()
+                    val frequentRes = frequentDeferred.await()
+                    val lastOrderRes = lastOrderDeferred.await()
 
-                _uiState.update {
-                    it.copy(
-                        products = productsRes.body() ?: it.products,
-                        categories = categoriesRes.body() ?: it.categories,
-                        connectedSeller = sellerRes.body()?.data ?: it.connectedSeller,
-                        cutoffTime = cutoffRes.body()?.cutoffTime ?: it.cutoffTime,
-                        frequentItems = frequentRes.body()?.frequentItems ?: it.frequentItems,
-                        lastOrder = lastOrderRes.body()?.lastOrder ?: it.lastOrder,
-                        errorMessage = null
-                    )
+                    wakingDetectionJob.cancel()
+
+                    if (productsRes != null && productsRes.isSuccessful) {
+                        val newProducts = productsRes.body() ?: emptyList()
+                        val newCategories = categoriesRes?.body() ?: _uiState.value.categories
+                        val newSeller = sellerRes?.body()?.data ?: _uiState.value.connectedSeller
+                        val newCutoff = cutoffRes?.body()?.cutoffTime ?: _uiState.value.cutoffTime
+                        val newFrequent = frequentRes?.body()?.frequentItems ?: _uiState.value.frequentItems
+                        val newLastOrder = lastOrderRes?.body()?.lastOrder ?: _uiState.value.lastOrder
+                        val now = System.currentTimeMillis()
+
+                        // Update local cache
+                        localDataCache?.put(LocalDataCache.KEY_BUYER_PRODUCTS, newProducts)
+                        localDataCache?.put(LocalDataCache.KEY_BUYER_CATEGORIES, newCategories)
+                        if (newSeller != null) localDataCache?.put(LocalDataCache.KEY_BUYER_CONNECTED_SELLER, newSeller)
+                        localDataCache?.put(LocalDataCache.KEY_BUYER_CUTOFF, newCutoff)
+
+                        _uiState.update {
+                            it.copy(
+                                products = newProducts,
+                                categories = newCategories,
+                                connectedSeller = newSeller,
+                                cutoffTime = newCutoff,
+                                frequentItems = newFrequent,
+                                lastOrder = newLastOrder,
+                                isLoading = false,
+                                isRefreshing = false,
+                                isWakingUp = false,
+                                errorMessage = null,
+                                transientError = null,
+                                lastUpdated = now,
+                                hasLoadedOnce = true
+                            )
+                        }
+                    } else {
+                        val err = productsRes?.errorBody()?.string() ?: "Failed to refresh catalogue"
+                        _uiState.update { current ->
+                            if (current.hasData) {
+                                // PRESERVE CACHED DATA! Never clear user screen.
+                                current.copy(
+                                    isLoading = false,
+                                    isRefreshing = false,
+                                    isWakingUp = false,
+                                    transientError = "Couldn't refresh data. Showing previously loaded data."
+                                )
+                            } else {
+                                current.copy(
+                                    isLoading = false,
+                                    isRefreshing = false,
+                                    isWakingUp = false,
+                                    errorMessage = err,
+                                    hasLoadedOnce = true
+                                )
+                            }
+                        }
+                    }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = e.message ?: "Failed to refresh catalogue") }
+                wakingDetectionJob.cancel()
+                _uiState.update { current ->
+                    if (current.hasData) {
+                        current.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            isWakingUp = false,
+                            transientError = "Couldn't refresh data. Showing previously loaded data."
+                        )
+                    } else {
+                        current.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            isWakingUp = false,
+                            errorMessage = e.message ?: "Network error",
+                            hasLoadedOnce = true
+                        )
+                    }
+                }
             } finally {
-                _uiState.update { it.copy(isRefreshing = false) }
+                wakingDetectionJob.cancel()
+                _uiState.update { it.copy(isLoading = false, isRefreshing = false, isWakingUp = false) }
             }
         }
+        activeRefreshJob = job
+        return job
     }
 
     fun selectCategory(categoryId: String) {
@@ -174,14 +301,18 @@ class BuyerCatalogueViewModel @Inject constructor(
 
     fun incrementQuantity(product: ProductDto) {
         val current = _uiState.value.cart[product.id] ?: 0.0
-        val step = if (product.unitType == UnitType.KG) 5.0 else 1.0
+        val step = 1.0
         setQuantity(product.id, if (current == 0.0) step else current + step)
     }
 
     fun decrementQuantity(product: ProductDto) {
         val current = _uiState.value.cart[product.id] ?: return
-        val step = if (product.unitType == UnitType.KG) 5.0 else 1.0
-        setQuantity(product.id, current - step)
+        val step = 1.0
+        if (current <= step) {
+            setQuantity(product.id, 0.0)
+        } else {
+            setQuantity(product.id, current - step)
+        }
     }
 
     fun removeFromCart(productId: String) {
